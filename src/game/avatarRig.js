@@ -385,3 +385,46 @@ export function animateRig(rig, motion) {
   swing(rig, 'Spine1', -0.14 * ratio)
   rig.root.position.y = rig.rootRestY + Math.abs(Math.cos(phase)) * 0.18 * ratio
 }
+
+/**
+ * Seated in a wheelchair: thighs forward, knees bent, hands on the push-rims.
+ *
+ * @param {{ time: number, push: number, phase: number, grounded: boolean }} motion
+ *   `push` 0..1 is how hard the arms are pushing (scales with speed); `phase`
+ *   advances the push stroke.
+ */
+export function animateSeated(rig, motion) {
+  if (!rig?.skeleton || !motion) return
+  const { push = 0, phase = 0, grounded = true, time = 0 } = motion
+
+  rig.root.position.y = rig.rootRestY
+
+  // Legs: sitting.
+  swing(rig, 'LegL1', -1.5)
+  swing(rig, 'LegR1', -1.5)
+  swing(rig, 'LegL2', 1.45)
+  swing(rig, 'LegR2', 1.45)
+
+  if (!grounded) {
+    // Mid-air: arms thrown up, cheering.
+    swing(rig, 'ArmL1', -2.3)
+    swing(rig, 'ArmR1', -2.3)
+    sway(rig, 'ArmL1', -0.35)
+    sway(rig, 'ArmR1', 0.35)
+    swing(rig, 'Spine1', 0.08)
+    return
+  }
+
+  // Push stroke: hands reach back on the rim, then drive forward and down.
+  const c = Math.cos(phase)
+  const idle = Math.sin(time * 1.6) * 0.03
+  const reach = push > 0.02 ? 0.25 + c * 0.55 * push : 0.18 + idle
+  swing(rig, 'ArmL1', reach)
+  swing(rig, 'ArmR1', reach)
+  sway(rig, 'ArmL1', -0.32)
+  sway(rig, 'ArmR1', 0.32)
+  const elbow = push > 0.02 ? -(0.35 + Math.max(0, c) * 0.5 * push) : -0.3
+  swing(rig, 'ArmL2', elbow)
+  swing(rig, 'ArmR2', elbow)
+  swing(rig, 'Spine1', -0.12 * push - Math.max(0, -c) * 0.08 * push)
+}

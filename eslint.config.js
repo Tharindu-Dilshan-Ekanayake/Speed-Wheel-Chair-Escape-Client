@@ -18,4 +18,13 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // React Three Fiber code mutates three.js objects (buffers, materials, fog)
+    // inside useFrame by design; the React Compiler purity rules don't apply there.
+    files: ['src/game/**/*.{js,jsx}', 'src/dev/**/*.{js,jsx}'],
+    rules: {
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+    },
+  },
 ])

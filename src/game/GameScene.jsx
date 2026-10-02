@@ -1,12 +1,14 @@
-import { Environment } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 
 import { useBloxity } from '../bloxity/BloxityContext'
+import { useGame } from '../state/store'
+import SpeedPopups from './effects/SpeedPopups'
 import FollowCamera from './FollowCamera'
-import Ground from './Ground'
 import Player from './Player'
+import RemotePlayers from './RemotePlayers'
+import World from './world/World'
 
 /**
  * Fires `onFirstFrame` after the renderer has actually drawn once.
@@ -24,6 +26,7 @@ function FirstFrameSignal({ onFirstFrame }) {
 
 export function GameScene() {
   const { game } = useBloxity()
+  const online = useGame((s) => s.net === 'online' || s.profile !== null)
   const playerBodyRef = useRef(null)
 
   const [avatarReady, setAvatarReady] = useState(false)
@@ -31,54 +34,48 @@ export function GameScene() {
 
   const handleAvatarReady = useCallback(() => setAvatarReady(true), [])
 
-  // Only end the loading screen once the avatar has finished assembling *and* a
-  // frame has rendered with it in place.
-  const handleFirstFrame = useCallback(() => {
+  const endLoading = useCallback(() => {
     if (loadingEnded.current || !avatarReady) return
     loadingEnded.current = true
     game.loadingEnd()
   }, [avatarReady, game])
 
-  // The first frame usually renders before the avatar finishes downloading, so the
-  // frame callback alone isn't enough — close the loading screen here too.
   useEffect(() => {
-    if (!avatarReady || loadingEnded.current) return
-    loadingEnded.current = true
-    game.loadingEnd()
-  }, [avatarReady, game])
+    endLoading()
+  }, [endLoading])
+
+  // Never leave the player stuck on the platform loading screen if the avatar CDN
+  // is slow - the base body still renders.
+  useEffect(() => {
+    const id = setTimeout(() => setAvatarReady(true), 12000)
+    return () => clearTimeout(id)
+  }, [])
 
   useEffect(() => {
-    game.loadingStep('Preparing scene…')
+    game.loadingStep('Building the world…')
   }, [game])
 
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 5, 10], fov: 60 }}
-      onCreated={({ gl }) => gl.setClearColor('#87ceeb')}
+      flat
+      dpr={[1, 1.75]}
+      camera={{ position: [0, 8, 34], fov: 65, near: 0.2, far: 400 }}
+      gl={{ antialias: true, powerPreference: 'high-performance' }}
     >
-      <hemisphereLight args={['#bfe3ff', '#3f5d3f', 0.8]} />
-      <directionalLight
-        castShadow
-        position={[10, 20, 10]}
-        intensity={1.8}
-        shadow-mapSize={[2048, 2048]}
-      />
+      <ambientLight intensity={0.35} />
 
       <Suspense fallback={null}>
-        <Environment preset="city" />
-        <Physics gravity={[0, -18, 0]}>
-          <Ground />
-          <Player
-            bodyRef={playerBodyRef}
-            position={[0, 3, 8]}
-            onAvatarReady={handleAvatarReady}
-          />
+        <Physics gravity={[0, -24, 0]} timeStep="vary">
+          <World />
+          {online && <Player bodyRef={playerBodyRef} onAvatarReady={handleAvatarReady} />}
         </Physics>
+        <RemotePlayers />
+        <SpeedPopups />
       </Suspense>
 
       <FollowCamera bodyRef={playerBodyRef} />
-      <FirstFrameSignal onFirstFrame={handleFirstFrame} />
+      <FirstFrameSignal onFirstFrame={endLoading} />
     </Canvas>
   )
 }

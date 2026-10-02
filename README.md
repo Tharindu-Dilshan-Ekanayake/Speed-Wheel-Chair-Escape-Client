@@ -1,16 +1,47 @@
-# React + Vite
+# +1 Speed Wheel Chair Escape — client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + React Three Fiber + Rapier, Bloxity SDK for login/avatars, Colyseus for multiplayer.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+# terminal 1 (server repo)
+npm start
+# terminal 2 (this repo)
+npm install
+npm run dev          # http://localhost:5173  (.env.development points at ws://localhost:2567)
+```
 
-## React Compiler
+## Controls
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Key | Action |
+| --- | --- |
+| W / S | Drive forward / back |
+| A / D | Turn (camera follows) |
+| Space | Jump |
+| E | Interact (buy chair, hatch egg, unlock treadmill, daily chest, portal) |
+| R T P U I G | Rebirth, Trails, Teleport, Auras, Inventory, Daily gift |
+| B / X / C | Store, x2 Speed, Custom speed |
+| 1 2 3 | Speed packs |
+| M | Mute |
+| F2 | Dev tool (stage teleport, free wins) |
 
-## Expanding the ESLint configuration
+## Where things are
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/shared/gameData.js` — every number in the game: chairs, pets, eggs, treadmills,
+  trails, auras, 15 stage layouts, XP curve, level cap. Shared with the server
+  (`npm run sync-shared` in the server repo after editing).
+- `src/game/` — 3D scene: `Player.jsx` (controls, hazards, gates), `world/` (lobby,
+  stages, hazards), `Wheelchair.jsx`, `Pets.jsx`, `effects/` (auras, level-up glow,
+  trails, speed popups).
+- `src/ui/` — HUD, menus, overlays, dev panel.
+- `src/net/net.js` — matchmaker + Colyseus connection.
+- `src/audio/sfx.js` — synthesized sound effects and music (no audio files).
+- `src/dev/PoseLab.jsx` — dev-only `/?pose` page to tune the seated avatar.
+
+## Deploy
+
+`.github/workflows/deploy.yml` builds, zips `dist/` and uploads it to Bloxity hosting.
+Add repo secret **`LEGION_DEPLOY_TOKEN`**, then push to `dev`
+(→ https://speed-wheel-chair-escape.dev.play.bloxity.io) or `main`
+(→ https://speed-wheel-chair-escape.play.bloxity.io).
