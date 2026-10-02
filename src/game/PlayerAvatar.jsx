@@ -15,6 +15,7 @@ import { loadOBJ, loadPartGLB, loadTexture } from '../bloxity/avatarLoader'
 import { useBloxity } from '../bloxity/BloxityContext'
 import {
   animateRig,
+  animateSeated,
   applyPart,
   applyProportions,
   applySkin,
@@ -52,10 +53,23 @@ function fallbackMotion(delta) {
  *   rescaled rather than trusted at native size.
  */
 export const PlayerAvatar = forwardRef(function PlayerAvatar(
-  { onReady, targetHeight = 1.8, motionRef, ...props },
+  {
+    onReady,
+    targetHeight = 1.8,
+    motionRef,
+    equipped: equippedProp,
+    proportions: proportionsProp,
+    remote = false,
+    seated = true,
+    ...props
+  },
   ref,
 ) {
-  const { avatar: equipped, proportions, game } = useBloxity()
+  // Local player: read the live Bloxity avatar. Remote players: what the server relayed.
+  const bloxity = useBloxity()
+  const equipped = remote ? equippedProp : bloxity.avatar
+  const proportions = remote ? proportionsProp : bloxity.proportions
+  const game = bloxity.game
   const { scene: baseScene } = useGLTF(BASE_BODY_URL)
   const [assembled, setAssembled] = useState(false)
 
@@ -101,7 +115,7 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
     // hat/back can be removed rather than stacking up.
     const attached = []
 
-    game.loadingStep('Loading avatar…')
+    if (!remote) game.loadingStep('Loading avatar…')
 
     const jobs = []
 
@@ -183,7 +197,7 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
         object.traverse((child) => child.geometry?.dispose())
       }
     }
-  }, [rig, equipped, game])
+  }, [rig, equipped, game, remote])
 
   // --- Proportions -------------------------------------------------------------
   // Applied per frame rather than in an effect: every bone is reset to its rest pose
@@ -197,7 +211,9 @@ export const PlayerAvatar = forwardRef(function PlayerAvatar(
       // Order matters: proportions reset every bone to its rest pose, and the
       // animation then rotates on top of that clean base.
       applyProportions(rig, proportionsRef.current)
-      animateRig(rig, motionRef?.current ?? fallbackMotion(delta))
+      const motion = motionRef?.current ?? fallbackMotion(delta)
+      if (seated) animateSeated(rig, motion)
+      else animateRig(rig, motion)
     } catch {
       // A malformed payload must not kill the render loop.
     }
