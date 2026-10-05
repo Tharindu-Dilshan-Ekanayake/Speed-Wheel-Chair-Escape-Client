@@ -1,57 +1,82 @@
+import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { useFrame } from '@react-three/fiber'
-import { memo, useMemo, useRef } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three'
 
-import { CORRIDOR_W, WALL_H, formatNum } from '../../shared/gameData'
-import { runtime, useGame } from '../../state/store'
-import { glowTexture, studMaterial } from '../textures'
+import { CORRIDOR_W, WALL_H, STAGE_GATE_H, STAGE_DOOR_W, stageAccess, stageRequirement, formatNum, tideLevel } from '../../shared/gameData'
+import { runtime, serverTime, useGame } from '../../state/store'
+import { crackTexture, glowTexture, studMaterial } from '../textures'
 import BoxChunk from './BoxChunk'
 import Hazards from './Hazards'
 import { Emoji, Label } from './Label'
 
 const OUTLINE = { stroke: '#000', strokeWidth: 0.18 }
 
+/** Soft overlapping ripples for water, tiled so wide rivers keep their detail. */
+function waterTexture(repeat = [1, 1]) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createLinearGradient(0, 0, 256, 256)
+  gradient.addColorStop(0, '#087f9b')
+  gradient.addColorStop(0.5, '#13bfd0')
+  gradient.addColorStop(1, '#087f9b')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 256, 256)
+  for (let row = -1; row < 9; row += 1) {
+    ctx.beginPath()
+    for (let x = -16; x <= 272; x += 4) {
+      const y = row * 34 + Math.sin(x * 0.035 + row * 1.8) * 7 + Math.sin(x * 0.012 - row) * 4
+      if (x === -16) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.strokeStyle = row % 2 ? 'rgba(173,255,255,.34)' : 'rgba(3,91,133,.36)'
+    ctx.lineWidth = row % 2 ? 4 : 8
+    ctx.stroke()
+    ctx.lineWidth = 1.5
+    ctx.strokeStyle = 'rgba(229,255,255,.24)'
+    ctx.stroke()
+  }
+  const texture = new CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = RepeatWrapping
+  texture.repeat.set(...repeat)
+  texture.colorSpace = SRGBColorSpace
+  return texture
+}
+
+/** Scenery falls stay against the walls, clear of each stage's playable adventure. */
+function RiverFalls({ stage }) {
+  const river = stage.rivers[0]
+  const pink = river.kind === 'pink'
+  const tex = useMemo(() => river.kind === 'water'
+    ? waterTexture([1, 3])
+    : crackTexture(river.kind === 'toxic' ? '#123321' : pink ? '#ff4f9a' : '#fa4909', river.kind === 'toxic' ? '#63ff00' : pink ? '#ffd0e5' : '#ffb01c', [1, 3]), [river, pink])
+  useEffect(() => () => tex.dispose(), [tex])
+  useFrame((_state, dt) => { tex.offset.y += dt * 0.3 })
+  return <group>
+    {[-1, 1].flatMap((side) => [0.2, 0.5, 0.8].map((fraction) => (
+      <mesh key={`${side}-${fraction}`} position={[stage.routeX + side * (CORRIDOR_W / 2 - 1), 5.3, river.z + river.d * (fraction - 0.5)]} rotation={[0, -side * Math.PI / 2, 0]}>
+        <boxGeometry args={[3.5, 17.5, 0.25]} />
+        <meshStandardMaterial map={tex} roughness={0.55} emissive={river.kind === 'water' ? '#086b8c' : river.kind === 'toxic' ? '#123321' : pink ? '#a51f62' : '#b53608'} emissiveIntensity={0.25} />
+      </mesh>
+    )))}
+  </group>
+}
+
 /** Lava river: a scrolling molten surface just above the kill volume, with a warm glow and rising embers. */
 function LavaRiver({ river }) {
+  const surface = useRef()
+  const volume = useRef()
   const redStone = river.style === 'redStone'
+  const water = river.kind === 'water'
+  const pink = river.kind === 'pink'
   const tex = useMemo(() => {
-    const cv = document.createElement('canvas')
-    cv.width = 256
-    cv.height = 256
-    const g = cv.getContext('2d')
     const toxic = river.kind === 'toxic'
-    const pal = redStone
-      ? ['#240707', '#8e1f1f', '#e03428', '#ff8b62']
-      : toxic
-        ? ['#0b3d12', '#e6ff6b', '#4dff3a', '#1fb52a']
-        : ['#8a1500', '#ffe36b', '#ff9b1a', '#ff5a12']
-    g.fillStyle = pal[0]
-    g.fillRect(0, 0, 256, 256)
-    // Tileable flow lines: sines whose period divides the canvas, so the edges match.
-    for (let i = 0; i < 9; i += 1) {
-      const y0 = (i / 9) * 256
-      const amp = 8 + (i % 3) * 5
-      const k = 1 + (i % 2)
-      g.strokeStyle = pal[1 + (i % 3)]
-      g.lineWidth = 7 + (i % 3) * 3
-      g.lineCap = 'round'
-      g.beginPath()
-      for (let x = 0; x <= 256; x += 8) {
-        const y = y0 + Math.sin((x / 256) * Math.PI * 2 * k + i) * amp
-        if (x === 0) g.moveTo(x, y)
-        else g.lineTo(x, y)
-      }
-      g.stroke()
-    }
-    // Dark crust patches.
-    g.fillStyle = 'rgba(40,6,0,0.55)'
-    for (let i = 0; i < 14; i += 1) g.fillRect((i * 83) % 256, (i * 47) % 256, 22 + (i % 4) * 8, 10 + (i % 3) * 6)
-    const t = new CanvasTexture(cv)
-    t.wrapS = t.wrapT = RepeatWrapping
-    t.colorSpace = SRGBColorSpace
-    t.repeat.set(river.w / 12, river.d / 12)
-    return t
-  }, [redStone, river])
+    return water
+      ? waterTexture([river.w / 14, river.d / 14])
+      : crackTexture(toxic ? '#10291c' : pink ? '#ff4f9a' : '#f0440a', toxic ? '#67ff00' : pink ? '#ffd0e5' : '#ffac12', [river.w / 9, river.d / 9])
+  }, [river, water, pink])
   const glow = useMemo(() => glowTexture(), [])
   const embers = useMemo(() => {
     const n = 140
@@ -67,7 +92,16 @@ function LavaRiver({ river }) {
     geo.setAttribute('position', new BufferAttribute(pos, 3))
     return { geo, sp }
   }, [river])
+  useEffect(() => () => { tex.dispose(); embers.geo.dispose() }, [tex, embers])
   useFrame((_s, dt) => {
+    if (river.tide) {
+      const level = tideLevel(river.tide, serverTime()).level
+      surface.current.position.y = level - river.y
+      // Keep the bottom anchored below the original river bed as the surface rises.
+      const depth = level - (river.y - 0.65)
+      volume.current.scale.y = depth
+      volume.current.position.y = river.y - depth / 2 - 0.02
+    }
     tex.offset.x -= dt * river.vx / 12
     const a = embers.geo.attributes.position
     for (let i = 0; i < embers.sp.length; i += 1) {
@@ -78,17 +112,21 @@ function LavaRiver({ river }) {
     a.needsUpdate = true
   })
   return (
-    <group>
+    <group ref={surface}>
+      {river.tide && <mesh ref={volume} position={[river.x, river.y - 0.345, river.z]} scale={[1, 0.65, 1]}>
+        <boxGeometry args={[river.w, 1, river.d]} />
+        <meshStandardMaterial map={tex} roughness={0.55} emissive={water ? '#08718b' : river.kind === 'toxic' ? '#1d5818' : pink ? '#a51f62' : '#b82c06'} emissiveIntensity={0.35} />
+      </mesh>}
       <mesh position={[river.x, river.y, river.z]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[river.w, river.d]} />
-        <meshBasicMaterial map={tex} toneMapped={false} />
+        <meshStandardMaterial map={tex} roughness={0.55} emissive={water ? '#08718b' : river.kind === 'toxic' ? '#1d5818' : pink ? '#a51f62' : '#b82c06'} emissiveIntensity={0.35} />
       </mesh>
-      <mesh position={[river.x, river.y + 0.08, river.z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={2}>
-        <planeGeometry args={[river.w + 8, river.d + 8]} />
-        <meshBasicMaterial map={glow} color={redStone ? '#ff3d24' : river.kind === 'toxic' ? '#5dff3a' : '#ff6a1a'} transparent opacity={0.3} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
-      </mesh>
+      {!water && <mesh position={[river.x, river.y + 0.04, river.z]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[river.w, river.d]} />
+        <meshBasicMaterial map={glow} color={redStone ? '#ff3d24' : river.kind === 'toxic' ? '#5dff3a' : pink ? '#ff75bd' : '#ff6a1a'} transparent opacity={0.12} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+      </mesh>}
       <points geometry={embers.geo} frustumCulled={false}>
-        <pointsMaterial color={redStone ? '#ffb08a' : river.kind === 'toxic' ? '#b8ff6b' : '#ffb347'} size={0.3} transparent opacity={0.9} depthWrite={false} blending={AdditiveBlending} />
+        <pointsMaterial color={water ? '#c7fff4' : redStone ? '#ffb08a' : river.kind === 'toxic' ? '#b8ff6b' : pink ? '#ffd0eb' : '#ffb347'} size={water ? 0.12 : 0.3} transparent opacity={water ? 0.4 : 0.9} depthWrite={false} blending={AdditiveBlending} />
       </points>
     </group>
   )
@@ -104,7 +142,7 @@ function Snowfall({ stage }) {
     const z0 = stage.z0
     const len = stage.z0 - stage.safe.z1
     for (let i = 0; i < n; i += 1) {
-      pos[i * 3] = (Math.random() - 0.5) * CORRIDOR_W
+      pos[i * 3] = stage.routeX + (Math.random() - 0.5) * CORRIDOR_W
       pos[i * 3 + 1] = Math.random() * WALL_H
       pos[i * 3 + 2] = z0 - Math.random() * len
       sp[i] = 1.2 + Math.random() * 1.6
@@ -129,86 +167,143 @@ function Snowfall({ stage }) {
   )
 }
 
-/** Green glass pane in a grey stud frame, "+N Speed" written on it (like the original). */
-function SpeedGate({ stage, gate }) {
-  const pane = useRef()
-  useFrame((state) => {
-    const claimed = runtime.claimedGates.has(`${stage}:${gate.idx}`)
-    pane.current.material.opacity = claimed ? 0.16 : 0.55 + Math.sin(state.clock.elapsedTime * 3) * 0.1
+function EntryGate({ stage }) {
+  const profile = useGame((s) => s.profile)
+  const devStage = useGame((s) => s.expedition?.devStage)
+  const toast = useGame((s) => s.toast)
+  const lastNotice = useRef(0)
+  const reason = profile && devStage !== stage.k ? stageAccess(profile, stage.k) : null
+  const req = stageRequirement(stage.k)
+  useFrame(() => {
+    if (!reason) return
+    const { x, z } = runtime.me
+    if (Math.abs(x - stage.routeX) > CORRIDOR_W / 2 + 1 || Math.abs(z - (stage.z0 + 0.4)) > 2.5) return
+    const now = Date.now()
+    if (now - lastNotice.current < 4000) return
+    lastNotice.current = now
+    toast(`${reason} to enter this stage. Head to the lobby to upgrade!`, 'error')
   })
-  const W = gate.w
-  const H = gate.secret ? 6 : 9
-  const F = 0.9
-  const frame = studMaterial('#c9d6ea')
-  return (
-    <group position={[gate.x, 0, gate.z]}>
-      {[-1, 1].map((s) => (
-        <mesh key={s} position={[s * (W / 2 + F / 2), H / 2, 0]} material={frame} castShadow>
-          <boxGeometry args={[F, H, F]} />
-        </mesh>
-      ))}
-      <mesh position={[0, H + F / 2, 0]} material={frame} castShadow>
-        <boxGeometry args={[W + 2 * F, F, F]} />
-      </mesh>
-      <mesh ref={pane} position={[0, H / 2, 0]}>
-        <boxGeometry args={[W, H, 0.25]} />
-        <meshStandardMaterial color="#2bff4f" emissive="#18c935" emissiveIntensity={0.7} transparent opacity={0.55} depthWrite={false} />
-      </mesh>
-      <Label
-        text={[{ text: `+${formatNum(gate.amount)}` }, { text: 'Speed', size: 0.8 }]}
-        height={H * 0.55}
-        position={[0, H / 2, 0.2]}
-        opts={OUTLINE}
-      />
-    </group>
-  )
-}
-
-function GateBarrier({ barrier }) {
-  const pane = useRef()
-  useFrame((state) => {
-    pane.current.material.opacity = 0.22 + Math.sin(state.clock.elapsedTime * 3) * 0.08
-  })
-  return (
-    <group position={[barrier.x, barrier.h / 2, barrier.z]}>
-      <mesh ref={pane}>
-        <boxGeometry args={[barrier.w, barrier.h, 0.14]} />
-        <meshStandardMaterial
-          color={barrier.color}
-          emissive={barrier.color}
-          emissiveIntensity={0.8}
+  const theme = stage.theme
+  const glassBlue = '#63d9ff'
+  const stageName = theme.name || `Stage ${stage.k}`
+  const adventureName = stage.def?.adventure || 'Adventure'
+  const requirement = `LEVEL ${req.level}  /  ${req.chair.name.toUpperCase()}`
+  return <group position={[stage.routeX, 0, stage.z0 + 0.4]}>
+    {/* Clean doorway barrier: exactly the same opening size as the safe-room gates. */}
+    {[-1, 1].map((side) => <mesh key={`portal-pillar-${side}`} position={[side * (STAGE_DOOR_W / 2 + 0.75), STAGE_GATE_H / 2, 0]}>
+      <boxGeometry args={[1.5, STAGE_GATE_H, 1.25]} />
+      <meshStandardMaterial color={glassBlue} emissive={reason ? '#ff2948' : glassBlue} emissiveIntensity={reason ? 0.55 : 0.9} metalness={0.38} roughness={0.18} />
+    </mesh>)}
+    <mesh position={[0, STAGE_GATE_H - 0.6, 0]}>
+      <boxGeometry args={[STAGE_DOOR_W + 3, 1.2, 1.25]} />
+      <meshStandardMaterial color={glassBlue} emissive={reason ? '#ff2948' : glassBlue} emissiveIntensity={reason ? 0.55 : 0.9} metalness={0.38} roughness={0.18} />
+    </mesh>
+    <mesh position={[0, STAGE_GATE_H / 2, 0.08]}>
+      <planeGeometry args={[STAGE_DOOR_W - 0.5, STAGE_GATE_H - 1.1]} />
+      <meshBasicMaterial color={reason ? '#b51f3d' : glassBlue} transparent opacity={0.18} depthWrite={false} side={2} />
+    </mesh>
+    {/* Transparent block-glass grid: the barrier reads clearly without hiding the stage behind it. */}
+    {[[-1, 1], [0, 1], [1, 1], [-1, 0], [0, 0], [1, 0], [-1, -1], [0, -1], [1, -1]].map(([column, row]) => (
+      <mesh key={`glass-block-${column}-${row}`} position={[column * 4.35, 7.8 + row * 3.55, 0.16]}>
+        <boxGeometry args={[3.95, 3.2, 0.28]} />
+        <meshPhysicalMaterial
+          color={reason ? '#a51f3a' : glassBlue}
+          emissive={reason ? '#ff2948' : glassBlue}
+          emissiveIntensity={reason ? 0.45 : 0.62}
           transparent
-          opacity={0.26}
-          depthWrite={false}
+          opacity={0.22}
+          transmission={0.72}
+          thickness={0.12}
+          roughness={0.08}
+          metalness={0.04}
+          clearcoat={0.9}
+          clearcoatRoughness={0.06}
         />
       </mesh>
-      <mesh position={[0, 0, 0.1]}>
-        <boxGeometry args={[barrier.w - 0.6, 0.16, 0.08]} />
-        <meshBasicMaterial color={barrier.color} toneMapped={false} />
-      </mesh>
-    </group>
-  )
+    ))}
+    {/* Large centre plaque stays readable, but remains see-through. */}
+    <mesh position={[0, STAGE_GATE_H / 2, 0.12]}>
+      <planeGeometry args={[STAGE_DOOR_W - 1.1, STAGE_GATE_H - 2.2]} />
+      <meshBasicMaterial color="#0e3950" transparent opacity={0.14} depthWrite={false} side={2} />
+    </mesh>
+    {[-1, 1].map((side) => <mesh key={`frame-x-${side}`} position={[side * (STAGE_DOOR_W / 2 - 0.55), STAGE_GATE_H / 2, 0.18]}>
+      <boxGeometry args={[0.22, STAGE_GATE_H - 3, 0.12]} />
+      <meshBasicMaterial color={reason ? '#ff536a' : glassBlue} toneMapped={false} />
+    </mesh>)}
+    {[2.05, STAGE_GATE_H - 1.5].map((y) => <mesh key={`frame-y-${y}`} position={[0, y, 0.18]}>
+      <boxGeometry args={[STAGE_DOOR_W - 1.1, 0.22, 0.12]} />
+      <meshBasicMaterial color={reason ? '#ff536a' : glassBlue} toneMapped={false} />
+    </mesh>)}
+    <Label text={`STAGE ${String(stage.k).padStart(2, '0')}`} height={1.15} position={[0, 13.2, 0.25]} opts={{ ...OUTLINE, color: reason ? '#ff9aaa' : theme.accent }} />
+    <Label text={stageName} height={2.35} position={[0, 10.5, 0.25]} opts={{ ...OUTLINE, color: '#ffffff' }} />
+    <Label text={adventureName} height={1.35} position={[0, 8.25, 0.25]} opts={{ ...OUTLINE, color: '#d8f6ff' }} />
+    <Label text={reason ? 'LOCKED' : 'READY TO ENTER'} height={0.95} position={[0, 5.85, 0.25]} opts={{ ...OUTLINE, color: reason ? '#ff7788' : '#6dffb3' }} />
+    <Label text={`REQUIRES  ${requirement}`} height={0.78} position={[0, 4.25, 0.25]} opts={{ ...OUTLINE, color: '#ffe38a' }} />
+    {reason && <RigidBody type="fixed" colliders={false}><CuboidCollider args={[STAGE_DOOR_W / 2, 10, 0.3]} position={[0, 10, 0]} /></RigidBody>}
+  </group>
+}
+
+function Excavation({ stage }) {
+  const expedition = useGame((s) => s.expedition)
+  const sites = stage.digSites.filter((site) => (expedition?.dug[site.id] || 0) < site.hits)
+  const boxes = sites.map((site) => ({ ...site, kind: 'solid' }))
+  return <>
+    <BoxChunk boxes={boxes} />
+    {sites.map((site) => <group key={site.id} position={[site.x, site.y, site.z + site.d / 2 + 0.06]}>
+      <Label text={'DIG · ' + (expedition?.dug[site.id] || 0) + '/' + site.hits} height={0.8} position={[0, 1.7, 0]} opts={OUTLINE} />
+      {[0, 1, 2].map((i) => <mesh key={i} position={[(i - 1) * 1.4, 0, 0.04]} rotation={[0, 0, (i - 1) * 0.45]}><boxGeometry args={[0.08, 1.4 + (expedition?.dug[site.id] || 0) * 0.3, 0.08]} /><meshBasicMaterial color="#0d1826" /></mesh>)}
+    </group>)}
+    {stage.toolRack && <group position={[stage.toolRack.x, 0, stage.toolRack.z]}>
+      <mesh position={[0, 0.6, 0]} material={studMaterial(stage.theme.wall2)}><boxGeometry args={[3, 1.2, 2]} /></mesh>
+      <group position={[0, 2, 0]} rotation={[0, 0, -0.4]}>
+        <mesh><cylinderGeometry args={[0.1, 0.12, 2.2, 8]} /><meshStandardMaterial color="#c28a4f" /></mesh>
+        <mesh position={[0, 0.9, 0]}><boxGeometry args={[1.6, 0.26, 0.3]} /><meshStandardMaterial color="#b9ebff" metalness={0.75} roughness={0.2} /></mesh>
+      </group>
+      <Label text="PICKAXE · E" height={0.8} position={[0, 4, 0]} opts={OUTLINE} />
+    </group>}
+  </>
 }
 
 function StageRoof({ stage }) {
-  const length = stage.ceil.from - stage.ceil.to
-  const lights = Array.from({ length: 7 }, (_, i) => stage.ceil.from - 8 - i * ((length - 16) / 6))
+  const from = stage.theme.outdoor ? stage.safe.z0 : stage.ceil.from
+  const length = from - stage.ceil.to
+  const lights = Array.from({ length: 3 }, (_, i) => from - 8 - i * ((length - 16) / 2))
   return (
     <group>
-      <mesh position={[0, WALL_H + 0.5, (stage.ceil.from + stage.ceil.to) / 2]} receiveShadow>
-        <boxGeometry args={[CORRIDOR_W + 4, 1, length]} />
-        <meshStandardMaterial color={stage.theme.wall} roughness={0.92} metalness={0.05} />
+      <mesh position={[stage.roofCenterX, WALL_H + 0.5, (from + stage.ceil.to) / 2]} material={studMaterial(stage.theme.wall, { tile: 0.65, checker: true })} receiveShadow>
+        <boxGeometry args={[stage.roofWidth + 4, 1, length]} />
       </mesh>
       {lights.map((z) => (
-        <group key={z} position={[0, WALL_H - 0.08, z]}>
+        <group key={z} position={[stage.roofCenterX, WALL_H - 0.08, z]}>
           <mesh>
             <boxGeometry args={[10, 0.18, 1.1]} />
             <meshStandardMaterial color={stage.theme.accent} emissive={stage.theme.accent} emissiveIntensity={2.2} />
           </mesh>
-          <pointLight color={stage.theme.accent} intensity={0.8} distance={24} decay={2} />
         </group>
       ))}
     </group>
+  )
+}
+
+function WheelchairWallArt({ stage }) {
+  const artZ = (stage.safe.z0 + stage.safe.z1) / 2
+  const artY = WALL_H * 0.52
+  return (
+    <>
+      {[[-1, stage.safe.x0 + 4.08], [1, stage.safe.x1 - 4.08]].map(([side, x]) => (
+        <group key={side} position={[x, artY, artZ]}>
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[0.18, 6.2, 8.5]} />
+            <meshBasicMaterial color={stage.theme.accent} toneMapped={false} />
+          </mesh>
+          <mesh position={[side * 0.11, 0, 0]}>
+            <boxGeometry args={[0.1, 5.4, 7.7]} />
+            <meshBasicMaterial color={stage.theme.wall2} toneMapped={false} />
+          </mesh>
+          <Label text="♿" height={4.2} position={[side * 0.18, 0, 0]} rotation={[0, side * Math.PI / 2, 0]} opts={{ ...OUTLINE, color: '#ffffff' }} />
+        </group>
+      ))}
+    </>
   )
 }
 
@@ -242,89 +337,118 @@ function Current({ c }) {
   return (
     <mesh position={[c.x, 0.08, c.z]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[c.w, c.d]} />
-      <meshBasicMaterial map={tex} transparent opacity={0.9} toneMapped={false} />
+      <meshStandardMaterial map={tex} roughness={0.65} />
     </mesh>
   )
 }
 
 function Pad({ pad }) {
-  const wins = useGame((s) => s.profile?.wins ?? 0)
-  const locked = wins < pad.minWins
-  const color = locked ? '#5b6272' : pad.bonus ? '#ff1f2e' : '#ffe600'
+  const rebirths = useGame((s) => s.profile?.rebirths ?? 0)
+  const locked = pad.bonus && rebirths < pad.minRebirths
+  const color = pad.bonus ? '#ff304f' : '#ffd522'
+  const gold = !pad.bonus
+  const panelGlow = useRef()
+  const floorGlow = useRef()
+  const glow = useMemo(() => glowTexture(), [])
+  useEffect(() => () => glow.dispose(), [glow])
+  useFrame((state) => {
+    const pulse = 0.8 + Math.sin(state.clock.elapsedTime * 2.6 + pad.z) * 0.2
+    if (panelGlow.current) panelGlow.current.emissiveIntensity = pulse * 0.22
+    if (floorGlow.current) floorGlow.current.opacity = (locked ? 0.12 : 0.22) + pulse * 0.13
+  })
   return (
     <group position={[pad.x, 0, pad.z]}>
-      <mesh position={[0, 0.09, 0]} receiveShadow>
-        <boxGeometry args={[pad.w, 0.18, pad.d]} />
-        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={locked ? 0.05 : 0.35} />
+      <mesh position={[0, 0.065, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[pad.w + 7, pad.d + 7]} />
+        <meshBasicMaterial ref={floorGlow} map={glow} color={color} transparent opacity={0.3} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0.18, 0]} receiveShadow>
+        <boxGeometry args={[pad.w, 0.22, pad.d]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} roughness={0.28} metalness={0.18} />
       </mesh>
       <mesh position={[0, 0.03, 0]}>
-        <boxGeometry args={[pad.w + 0.5, 0.06, pad.d + 0.5]} />
-        <meshStandardMaterial color="#222733" />
+        <boxGeometry args={[pad.w + 0.65, 0.2, pad.d + 0.65]} />
+        <meshStandardMaterial color="#18202c" />
       </mesh>
+      {/* A tall, framed beacon gives each return pad the bold look of the reference. */}
+      <group position={[0, 0, -4.1]}>
+        <mesh position={[0, 4.2, 0]}>
+          <boxGeometry args={[pad.w + 1, 8.6, 0.5]} />
+          <meshStandardMaterial color={gold ? '#e0a917' : '#c62c4c'} metalness={0.55} roughness={0.32} />
+        </mesh>
+        <mesh position={[0, 4.2, 0.28]}>
+          <boxGeometry args={[pad.w - 0.45, 8.18, 0.12]} />
+          <meshStandardMaterial ref={panelGlow} color={gold ? '#07519b' : '#53264e'} emissive={gold ? '#0868b4' : '#85223c'} emissiveIntensity={0.2} roughness={0.45} />
+        </mesh>
+        {[-1, 1].map((side) => <mesh key={side} position={[side * (pad.w / 2 - 0.3), 4.2, 0.36]}>
+          <boxGeometry args={[0.12, 8.05, 0.08]} />
+          <meshBasicMaterial color={color} toneMapped={false} />
+        </mesh>)}
+      </group>
+      {/* Compact 3D cup and handles beneath the reward text. */}
+      <group position={[0, 0.25, -2.7]}>
+        <mesh position={[0, 0.5, 0]} castShadow>
+          <cylinderGeometry args={[0.58, 0.42, 0.7, 12]} />
+          <meshStandardMaterial color={gold ? '#ffe15c' : '#ff7288'} metalness={0.72} roughness={0.2} emissive={color} emissiveIntensity={0.32} />
+        </mesh>
+        {[-1, 1].map((side) => <mesh key={side} position={[side * 0.52, 0.51, 0]}>
+          <torusGeometry args={[0.23, 0.07, 8, 16]} />
+          <meshStandardMaterial color={color} metalness={0.7} roughness={0.2} emissive={color} emissiveIntensity={0.4} />
+        </mesh>)}
+        <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.09, 0.09, 0.22, 10]} /><meshStandardMaterial color="#fff0b4" metalness={0.65} /></mesh>
+        <mesh position={[0, -0.13, 0]}><boxGeometry args={[0.85, 0.16, 0.46]} /><meshStandardMaterial color={gold ? '#a26720' : '#81233d'} metalness={0.45} /></mesh>
+        <mesh position={[0, -0.26, 0]}><boxGeometry args={[1.12, 0.16, 0.56]} /><meshStandardMaterial color={color} metalness={0.55} emissive={color} emissiveIntensity={0.2} /></mesh>
+      </group>
+      <Label text="RETURN" height={1.25} position={[0, 6.1, 0]} billboard opts={OUTLINE} />
+      {[-1, 1].map((side) => <Emoji key={side} emoji="🏆" size={1.7} position={[side * (pad.w / 2 - 0.6), 1.6, 1]} billboard />)}
       <Label
-        text={locked ? `🔒 Need ${formatNum(pad.minWins)} Wins` : 'Press E'}
-        height={0.9}
-        position={[0, 4.6, 0]}
+        text={locked ? `🔒 Need ${pad.minRebirths} Rebirths` : 'Press E'}
+        height={0.8}
+        position={[0, 2.6, 0]}
         billboard
         opts={{ ...OUTLINE, color: locked ? '#ff9b9b' : '#9ff6ff' }}
       />
       <Label
         text={`+${formatNum(pad.wins)} Wins${pad.bonus ? ' 2x' : ''}`}
-        height={1.2}
-        position={[-0.5, 3.5, 0]}
+        height={1.6}
+        position={[0, 4.5, 0]}
         billboard
         opts={{ ...OUTLINE, gradient: ['#fff6a0', '#ffc21a'] }}
       />
-      <Emoji emoji="🏆" size={1.5} billboard position={[3, 3.5, 0]} />
     </group>
   )
 }
 
 function Sign({ s }) {
   switch (s.kind) {
+    case 'instruction':
+      return null
     case 'title':
       return (
         <Label
           text={s.text}
-          height={3.6}
+          height={4.4}
           position={[s.x, s.y, s.z]}
-          opts={{ ...OUTLINE, gradient: ['#ffffff', s.color] }}
+          opts={{ ...OUTLINE, color: s.color }}
         />
       )
     case 'sub':
       return <Label text={s.text} height={1.3} position={[s.x, s.y, s.z]} opts={OUTLINE} />
     case 'mascot':
-      return (
-        <group position={[s.x, s.y, s.z]}>
-          {s.arrow && (
-            <>
-              <mesh position={[0, 0, -0.1]}>
-                <boxGeometry args={[9, 3.2, 0.3]} />
-                <meshStandardMaterial color="#ff1f2e" />
-              </mesh>
-              <mesh position={[5.4, 0, -0.1]} rotation={[0, 0, -Math.PI / 2]}>
-                <coneGeometry args={[2.6, 2.6, 3]} />
-                <meshStandardMaterial color="#ff1f2e" />
-              </mesh>
-            </>
-          )}
-          <Emoji emoji={s.emoji} size={4.2} />
-        </group>
-      )
+      return null
     case 'rec':
       return (
         <Label
           text={s.text}
           height={1.4}
           position={[s.x, s.y, s.z]}
-          opts={{ stroke: null, strokeWidth: 0, bg: 'rgba(15,18,30,0.92)', size: 64 }}
+          opts={{ stroke: null, strokeWidth: 0, bg: '#0f121e', size: 64 }}
         />
       )
     case 'safe':
       return (
         <group position={[s.x, s.y, s.z]}>
-          <Label text="Safe Zone" height={2.6} opts={{ ...OUTLINE, color: '#5dff3a' }} />
-          <Emoji emoji="😃" size={2.4} position={[0, -3, 0]} />
+          <Label text="Safe Zone" height={2.6} opts={{ ...OUTLINE, color: s.color }} />
         </group>
       )
     case 'tip':
@@ -339,7 +463,7 @@ function Sign({ s }) {
           height={7}
           position={[s.x, s.y, s.z]}
           rotation={[0, Math.PI / 2, 0]}
-          opts={{ ...OUTLINE, bg: 'rgba(20,30,70,0.8)' }}
+          opts={{ ...OUTLINE, bg: '#141e46' }}
         />
       )
     case 'secret':
@@ -368,18 +492,24 @@ function Sign({ s }) {
 export const Stage = memo(function Stage({ stage, near, visible }) {
   return (
     <>
-      <BoxChunk boxes={stage.boxes} visible={visible} />
+      {/* Static course geometry must stay rendered while the camera/view stage changes.
+          Colliders already exist for every stage, so hiding these meshes makes the
+          player see invisible floors/bridges after a refresh or teleport. */}
+      {/* Only keep nearby courses in the draw and physics lists. Every stage was
+          previously meshed and collidable at once, causing transition spikes. */}
+      {visible && <BoxChunk boxes={stage.boxes} colliders />}
+      {near && <EntryGate stage={stage} />}
+      {near && <Excavation stage={stage} />}
       {visible && <StageRoof stage={stage} />}
+      {near && <WheelchairWallArt stage={stage} />}
       {near && (
         <>
           <Hazards hazards={stage.hazards} />
-          {stage.gates.map((g) => (
-            <SpeedGate key={g.idx} stage={stage.k} gate={g} />
-          ))}
-          {stage.barrier && <GateBarrier barrier={stage.barrier} />}
+
           {stage.rivers.map((r, i) => (
             <LavaRiver key={`r${i}`} river={r} />
           ))}
+          {stage.k <= 3 && stage.rivers.length > 0 && <RiverFalls stage={stage} />}
           {stage.currents.map((c, i) => (
             <Current key={i} c={c} />
           ))}

@@ -158,6 +158,9 @@ function wire(r) {
 }
 
 on('init', (m) => {
+  set({ expedition: m.expedition || { tool: null, dug: {}, devStage: 0 } })
+  runtime.pendingPush = null
+  runtime.pushReadyAt = 0
   runtime.clockOffset = m.now - Date.now()
   runtime.remote.clear()
   const players = {}
@@ -178,6 +181,9 @@ on('pong', (m) => {
   runtime.clockOffset = m.now + rtt / 2 - Date.now()
 })
 
+on('expedition', (expedition) => set({ expedition }))
+on('push', (impulse) => { runtime.pendingPush = impulse; play('land') })
+on('pushReady', ({ at }) => { runtime.pushReadyAt = at })
 on('profile', (profile) => set({ profile }))
 on('stats', (s) => {
   const p = get().profile
@@ -216,6 +222,7 @@ on('snap', (snap) => {
 })
 
 on('teleport', (pos) => {
+  runtime.pendingPush = null;
   runtime.pendingTeleport = pos
 })
 

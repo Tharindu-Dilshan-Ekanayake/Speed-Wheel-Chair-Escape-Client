@@ -57,13 +57,16 @@ export function GameScene() {
 
   return (
     <Canvas
-      shadows
+      // The reference look relies on a strong sun shadow under the chair and avatar.
+      // Keep soft PCF filtering so the shadow edges stay readable without looking harsh.
+      shadows={{ type: 'PCFSoftShadowMap' }}
       flat
-      dpr={[1, 1.75]}
+      dpr={[1, 1.35]}
+      performance={{ min: 0.6, max: 1, debounce: 250 }}
       camera={{ position: [0, 8, 34], fov: 65, near: 0.2, far: 400 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
     >
-      <ambientLight intensity={0.35} />
+      <ambientLight intensity={0.12} />
 
       <Suspense fallback={null}>
         <Physics gravity={[0, -24, 0]} timeStep="vary">

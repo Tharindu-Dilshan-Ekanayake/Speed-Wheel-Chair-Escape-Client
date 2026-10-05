@@ -153,6 +153,8 @@ export function PetModel({ type, showLabel = false }) {
 
   const bigTail = ['fox', 'cat', 'tiger', 'lion', 'hellhound'].includes(type)
   const dragonTail = ['goldDragon', 'rDragon', 'demon', 'overlord', 'imp'].includes(type)
+  const dragonWings = ['goldDragon', 'rDragon', 'demon', 'overlord'].includes(type)
+  const dragonSpines = ['goldDragon', 'rDragon', 'demon', 'overlord', 'imp'].includes(type)
 
   return (
     <group>
@@ -168,6 +170,48 @@ export function PetModel({ type, showLabel = false }) {
           {mat(acc === body ? '#ffffff' : acc, 0, 0.7)}
         </mesh>
       )}
+
+      {/* Bright collar, chest jewel, and coat markings give each pet a richer silhouette. */}
+      {!slime && (
+        <>
+          <mesh position={[0, 0.67, 0.13]} rotation={[Math.PI / 2, 0, 0]} scale={[0.78, 0.78, 1]}>
+            <torusGeometry args={[0.25, 0.035, 8, 20]} />
+            {mat(rarityColor, 0.16, 0.28)}
+          </mesh>
+          <mesh position={[0, 0.57, 0.4]} rotation={[0, 0, Math.PI / 4]} scale={[1, 1.2, 0.7]}>
+            <octahedronGeometry args={[0.09, 0]} />
+            <meshStandardMaterial color={rarityColor} emissive={rarityColor} emissiveIntensity={0.55} metalness={0.45} roughness={0.22} />
+          </mesh>
+          {[-1, 1].map((s) => (
+            <mesh key={`mark-${s}`} position={[s * 0.25, 0.48, 0.38]} scale={[0.09, 0.07, 0.035]}>
+              <sphereGeometry args={[1, 10, 8]} />
+              {mat(acc, 0.12, 0.4)}
+            </mesh>
+          ))}
+        </>
+      )}
+
+      {/* Colorful fan wings and glowing back spines make dragons read as dragons. */}
+      {dragonWings && [-1, 1].map((s, i) => (
+        <group key={`dragon-wing-${s}`} ref={(el) => (wings.current[i] = el)} position={[s * 0.28, 0.58, -0.22]}>
+          <mesh position={[s * 0.27, 0.12, -0.03]} rotation={[0, 0, s * -0.28]} scale={[0.48, 0.27, 0.09]}>
+            <sphereGeometry args={[1, 12, 10]} />
+            <meshStandardMaterial color={acc} emissive={acc} emissiveIntensity={0.22} side={2} roughness={0.38} />
+          </mesh>
+          {[0, 1, 2].map((j) => (
+            <mesh key={j} position={[s * (0.12 + j * 0.12), 0.2 + j * 0.035, 0.015]} rotation={[0, 0, s * -0.48]}>
+              <cylinderGeometry args={[0.018, 0.025, 0.34, 5]} />
+              {mat(rarityColor, 0.3, 0.3)}
+            </mesh>
+          ))}
+        </group>
+      ))}
+      {dragonSpines && [0, 1, 2].map((i) => (
+        <mesh key={`spine-${i}`} position={[0, 0.69 - i * 0.12, -0.3 - i * 0.07]} rotation={[0.18, 0, 0]}>
+          <coneGeometry args={[0.075 - i * 0.01, 0.2, 6]} />
+          {mat(i === 1 ? rarityColor : acc, 0.3, 0.28)}
+        </mesh>
+      ))}
 
       <group ref={head} position={[0, 0.82, 0.22]}>
         {/* big round head */}

@@ -2,9 +2,10 @@ import { useFrame } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier } from '@react-three/rapier'
 import { useEffect, useMemo, useRef } from 'react'
 
-import { play, setRoll } from '../audio/sfx'
+import { play, setCarryRun, setRoll } from '../audio/sfx'
 import { send } from '../net/net'
 import {
+  carryState, canPush,
   LOBBY,
   LOBBY_SPAWN,
   STAGES,
@@ -15,6 +16,7 @@ import {
   regionAtZ,
   stageStartZ,
   walkSpeed,
+  tornadoPos,
 } from '../shared/gameData'
 import { runtime, serverTime, useGame } from '../state/store'
 import Chaser from './Chaser'
@@ -51,6 +53,8 @@ export function Player({ bodyRef, onAvatarReady }) {
   const st = useRef({
     yaw: LOBBY_SPAWN.yaw,
     speed: 0,
+    carry: { held: false, until: 0 },
+    knock: null,
     backHeld: false,
     uturn: 0, // radians of the S about-face still to turn
     jumpCd: 0,
@@ -71,6 +75,8 @@ export function Player({ bodyRef, onAvatarReady }) {
       const id = st.current.promptId
       const prompt = useGame.getState().prompt
       if (!id || !prompt || prompt.disabled) return
+      const me = runtime.me
+      send('pos', [me.x, me.y, me.z, me.yaw, (me.grounded ? 2 : 0) | (me.carrying ? 8 : 0)])
       play('click')
       prompt.action?.()
     }
@@ -104,11 +110,16 @@ export function Player({ bodyRef, onAvatarReady }) {
     const s = st.current
     const k = keys.current
     const touch = runtime.touch
+    s.carry = carryState(s.carry, !!(k.sprint || touch.carry), performance.now())
+    let carrying = s.carry.carrying
 
     // --- Server-driven teleports (spawn, respawn, stage teleport) ---------------
     if (runtime.pendingTeleport) {
       const t = runtime.pendingTeleport
       runtime.pendingTeleport = null
+      s.knock = null
+      s.carry = { held: !!(k.sprint || touch.carry), until: 0 }
+      carrying = false
       body.setTranslation({ x: t.x, y: t.y, z: t.z }, true)
       body.setLinvel({ x: 0, y: 0, z: 0 }, true)
       s.yaw = t.yaw ?? Math.PI
@@ -136,6 +147,7 @@ export function Player({ bodyRef, onAvatarReady }) {
       s.uturn = 0
       runtime.steerYaw = 0
       setRoll(0)
+      setCarryRun(0)
       return
     }
     visual.current.rotation.z = 0
@@ -160,7 +172,7 @@ export function Player({ bodyRef, onAvatarReady }) {
     }
     const drive = ahead > 0 && behind > 0 ? 0 : Math.min(1, ahead + behind)
     const max = walkSpeed(profile) * WALK_TO_WORLD
-    const target = max * drive * (s.uturn > 0.05 ? UTURN_SLOW : 1)
+    const target = max * drive * (carrying ? 0.85 : 1) * (s.uturn > 0.05 ? UTURN_SLOW : 1)
     const diff = target - s.speed
     s.speed += Math.sign(diff) * Math.min(Math.abs(diff), ACCEL * dt * (target === 0 ? 1.4 : 1))
 
@@ -171,6 +183,15 @@ export function Player({ bodyRef, onAvatarReady }) {
     const region = regionAtZ(pos.z)
     const W = world()
     const stage = region.stage ? W.stages[region.stage] : null
+    if (region.stage !== s.courseStage || !region.inCourse) {
+      if (region.stage === 5 && region.inCourse && s.courseStage !== 5) {
+        const enteredAt = serverTime()
+        for (const hazard of W.stages[5].hazards) if (hazard.triggerOnEntry) hazard.activeAt = enteredAt
+      } else if (s.courseStage === 5) {
+        for (const hazard of W.stages[5].hazards) if (hazard.triggerOnEntry) delete hazard.activeAt
+      }
+      s.courseStage = region.inCourse ? region.stage : 0
+    }
     let flowX = 0
     let flowZ = 0
     if (stage) {
@@ -180,12 +201,38 @@ export function Player({ bodyRef, onAvatarReady }) {
           flowZ += c.vz || 0
         }
       }
+      // Storm stages tug the chair toward the moving funnel; keep the pull
+      // modest enough that steering and forward drive can still beat it.
+      for (const hazard of stage.hazards) {
+        if (hazard.type !== 'tornado') continue
+        const funnel = tornadoPos(hazard, serverTime())
+        const dx = funnel.x - pos.x
+        const dz = funnel.z - pos.z
+        const distance = Math.hypot(dx, dz)
+        const range = 14
+        if (distance > 1 && distance < range) {
+          const pull = 9 * (1 - distance / range)
+          flowX += dx / distance * pull
+          flowZ += dz / distance * pull
+        }
+      }
     }
     let vy = lv.y
     if ((k.jump || touch.jump) && grounded && s.jumpCd === 0) {
-      vy = JUMP_VELOCITY
+      vy = carrying ? 10.8 : JUMP_VELOCITY
       s.jumpCd = 0.3
       play('jump')
+    }
+    if (runtime.pendingPush) {
+      s.knock = { ...runtime.pendingPush, until: performance.now() + runtime.pendingPush.duration * 1000 }
+      runtime.pendingPush = null
+      vy = Math.max(vy, s.knock.up)
+    }
+    if (s.knock) {
+      const fade = Math.max(0, (s.knock.until - performance.now()) / (s.knock.duration * 1000))
+      flowX += s.knock.x * fade
+      flowZ += s.knock.z * fade
+      if (!fade) s.knock = null
     }
     body.setLinvel({ x: fx * s.speed + flowX, y: vy, z: fz * s.speed + flowZ }, true)
     if (grounded && !s.wasGrounded && lv.y < -6) play('land')
@@ -218,11 +265,16 @@ export function Player({ bodyRef, onAvatarReady }) {
     motion.push = Math.min(1, effective / 5)
     motion.phase += dt * (2.5 + effective * 0.55)
     motion.grounded = grounded
+    motion.carrying = carrying
+    motion.speed = effective
+    motion.maxSpeed = max
     motion.wheel += (onTread && absSpeed < 0.5 ? effective : s.speed) * dt / 0.55
     movingRef.current = absSpeed > 0.5 || onTread
-    // Rolling sound follows real ground speed; a light spoke tick every stretch rolled.
-    setRoll(grounded ? Math.min(1, effective / max) * (effective > 0.3 ? 1 : 0) : 0)
-    if (grounded && effective > 0.5) {
+    // Wheels use a bicycle-pedal rhythm; carrying uses separate footfalls.
+    const moveLevel = Math.min(1, effective / max) * (effective > 0.3 ? 1 : 0)
+    setRoll(grounded && !carrying ? moveLevel : 0)
+    setCarryRun(grounded && carrying ? moveLevel : 0)
+    if (grounded && !carrying && effective > 0.5) {
       s.tickAcc += effective * dt
       if (s.tickAcc > 1.5) {
         s.tickAcc = 0
@@ -240,6 +292,8 @@ export function Player({ bodyRef, onAvatarReady }) {
     me.grounded = grounded
     me.onTread = onTread
     me.stage = region.stage
+    me.carrying = carrying
+    me.carryRemaining = s.carry.remaining
 
     // --- Death checks ---------------------------------------------------------------
     if (pos.y < -14) return die('fall')
@@ -280,17 +334,6 @@ export function Player({ bodyRef, onAvatarReady }) {
       }
     }
 
-    // --- Speed gates ----------------------------------------------------------------
-    if (stage && region.inCourse) {
-      for (const g of stage.gates) {
-        const key = `${stage.k}:${g.idx}`
-        if (!runtime.claimedGates.has(key) && Math.abs(pos.z - g.z) < (g.secret ? 3.5 : 1.4) && Math.abs(pos.x - g.x) < g.w / 2 + 0.6) {
-          runtime.claimedGates.add(key)
-          send('gate', { stage: stage.k, idx: g.idx })
-        }
-      }
-    }
-
     // --- Wins pads in the safe room: stand on one and press E -------------------------
     s.padCd = Math.max(0, s.padCd - dt)
     let padSpot = null
@@ -298,11 +341,11 @@ export function Player({ bodyRef, onAvatarReady }) {
       for (const pad of [stage.returnPad, stage.bonusPad]) {
         if (!inPad(pad, pos.x, pos.z)) continue
         const k = stage.k
-        const locked = profile.wins < pad.minWins
+        const locked = pad.bonus && profile.rebirths < pad.minRebirths
         padSpot = {
           id: `pad-${k}-${pad.bonus ? 'b' : 'r'}-${locked ? 'l' : 'u'}`,
           prompt: locked
-            ? { title: '🔒 Locked', sub: `Need ${formatNum(pad.minWins)} Wins to unlock`, disabled: true }
+            ? { title: '🔒 Locked', sub: `Need ${pad.minRebirths} Rebirths to unlock`, disabled: true }
             : {
                 title: `+${formatNum(pad.wins)} Wins${pad.bonus ? ' (2x!)' : ''}`,
                 sub: 'Press E - claim & go to lobby',
@@ -317,7 +360,30 @@ export function Player({ bodyRef, onAvatarReady }) {
     }
 
     // --- Proximity prompt -------------------------------------------------------------
-    const near = padSpot || (region.stage === 0 ? nearestSpot(pos.x, pos.z, profile) : null)
+    const expedition = useGame.getState().expedition || { dug: {} }
+    let adventureSpot = null
+    if (stage?.toolRack && Math.hypot(pos.x - stage.toolRack.x, pos.z - stage.toolRack.z) < 4) {
+      adventureSpot = { id: 'tool-' + stage.k, prompt: { title: 'Expedition pickaxe', sub: expedition.tool ? 'Pickaxe equipped' : 'Press E to pick up', disabled: !!expedition.tool, action: () => send('expedition', { action: 'pickup', id: stage.k }) } }
+    }
+    for (const site of stage?.digSites || []) {
+      const hits = expedition.dug[site.id] || 0
+      if (hits < site.hits && Math.abs(pos.x - site.x) < site.w / 2 && Math.abs(pos.z - site.z) < 4 && Math.abs(pos.y - (site.y - 2)) < 3) {
+        adventureSpot = { id: site.id, prompt: { title: 'Excavate passage', sub: expedition.tool ? 'Press E to dig · ' + hits + '/' + site.hits : 'Pick up the pickaxe in the previous safe room', disabled: !expedition.tool, action: () => send('expedition', { action: 'dig', id: site.id }) } }
+      }
+    }
+    if (!adventureSpot && region.inCourse) {
+      let nearest = 3.1
+      for (const [sid, remote] of runtime.remote) {
+        const other = { x: remote.tx, y: remote.ty, z: remote.tz }
+        const distance = Math.hypot(other.x - pos.x, other.z - pos.z)
+        if (distance < nearest && canPush({ pos, expedition }, { pos: other, expedition })) {
+          nearest = distance
+          const seconds = Math.max(0, Math.ceil(((runtime.pushReadyAt || 0) - (Date.now() + runtime.clockOffset)) / 1000))
+          adventureSpot = { id: 'push-' + sid, prompt: { title: 'Push ' + (useGame.getState().players[sid]?.name || 'player'), sub: seconds ? 'Ready in ' + seconds + 's' : 'Press E to push · 3s cooldown', disabled: seconds > 0, action: () => send('push', { sid }) } }
+        }
+      }
+    }
+    const near = padSpot || adventureSpot || (region.stage === 0 ? nearestSpot(pos.x, pos.z, profile) : null)
     const prev = useGame.getState().prompt
     if ((near?.id || null) !== s.promptId || (near && prev && near.prompt.sub !== prev.sub)) {
       s.promptId = near?.id || null
@@ -328,7 +394,7 @@ export function Player({ bodyRef, onAvatarReady }) {
     s.sendT += dt
     if (s.sendT >= SEND_EVERY) {
       s.sendT = 0
-      const flags = (me.moving ? 1 : 0) | (grounded ? 2 : 0) | (onTread ? 4 : 0)
+      const flags = (me.moving ? 1 : 0) | (grounded ? 2 : 0) | (onTread ? 4 : 0) | (carrying ? 8 : 0)
       send('pos', [+pos.x.toFixed(2), +pos.y.toFixed(2), +pos.z.toFixed(2), +s.yaw.toFixed(3), flags])
     }
   })
@@ -356,6 +422,7 @@ export function Player({ bodyRef, onAvatarReady }) {
         <group ref={visual} position={[0, -CENTER_Y, 0]}>
           <Rider
             name={profile?.name}
+            showName={false}
             level={profile?.level}
             chairId={profile?.chair || 'classic'}
             auraId={profile?.aura}

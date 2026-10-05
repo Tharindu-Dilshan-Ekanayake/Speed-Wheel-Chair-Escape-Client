@@ -11,7 +11,7 @@ import { world } from './worldData'
 const LOBBY_SKY = '#33d1ff'
 
 /**
- * Lobby + all 15 stages. Colliders exist everywhere; meshes only for the region the
+ * Lobby + all stages. Colliders exist everywhere; meshes only for the region the
  * player is in and its neighbours.
  */
 export function World() {
@@ -38,7 +38,7 @@ function SkyAndFog({ view }) {
   const scene = useThree((s) => s.scene)
   const target = useRef(new Color(LOBBY_SKY))
   useEffect(() => {
-    if (!scene.fog) scene.fog = new Fog(LOBBY_SKY, 90, 260)
+    if (!scene.fog) scene.fog = new Fog(LOBBY_SKY, 160, 380)
     if (!scene.background) scene.background = new Color(LOBBY_SKY)
   }, [scene])
   useEffect(() => {
@@ -88,8 +88,8 @@ function ColorLights({ view }) {
   })
   return (
     <>
-      <hemisphereLight ref={hemi} args={[LOBBY_LIGHT.sky, LOBBY_LIGHT.ground, 1.2]} />
-      <directionalLight ref={fill} position={[-30, 18, -24]} color={LOBBY_LIGHT.fill} intensity={0.5} />
+      <hemisphereLight ref={hemi} args={[LOBBY_LIGHT.sky, LOBBY_LIGHT.ground, 0.9]} />
+      <directionalLight ref={fill} position={[-30, 18, -24]} color={LOBBY_LIGHT.fill} intensity={0.32} />
     </>
   )
 }
@@ -113,7 +113,7 @@ function SunFollow() {
       ref={light}
       castShadow
       color="#fff1da"
-      intensity={1.9}
+      intensity={1.35}
       shadow-mapSize={[2048, 2048]}
       shadow-camera-left={-45}
       shadow-camera-right={45}
@@ -121,7 +121,8 @@ function SunFollow() {
       shadow-camera-bottom={-45}
       shadow-camera-near={1}
       shadow-camera-far={140}
-      shadow-bias={-0.0005}
+      shadow-bias={-0.0008}
+      shadow-normalBias={0.035}
     />
   )
 }

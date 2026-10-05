@@ -4,13 +4,14 @@ import {
   DAILY_COOLDOWN_MS,
   DAILY_REWARDS,
   DAILY_STREAK_RESET_MS,
+  DEV_TOOLS,
   EGGS,
   LOBBY,
   LOBBY_SPAWN,
   MAX_LEVEL,
   MAX_PETS,
   PETS,
-  BONUS_PAD_MIN_WINS,
+  BONUS_PAD_MIN_REBIRTHS,
   REBIRTH_SPEED_BONUS,
   REBIRTH_WIN_BONUS,
   SPEED_PACKS,
@@ -21,6 +22,7 @@ import {
   TREADMILLS,
   TREADMILL_STEPS_PER_SEC,
   X2_BOOST,
+  newExpedition, expeditionAction, excavationComplete, blockedExcavation, stageAccess, stageStartZ,
   allStages,
   chairById,
   inPad,
@@ -29,7 +31,7 @@ import {
   petSlots,
   regionAtZ,
   speedMultiplier,
-  stageEndZ,
+  stageCenterX,
   stageSpawn,
   xpForLevel,
 } from '../shared/gameData'
@@ -148,6 +150,7 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
     distAcc: 0,
     pendingGain: 0,
     pendingSrc: 'step',
+    expedition: newExpedition(),
     run: { stage: 0, enteredAt: 0, gates: new Set(), claimed: false },
   }
   let dirty = true
@@ -187,6 +190,10 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
   }
   const setPos = (spawn) => {
     p.pos = { x: spawn.x, y: spawn.y, z: spawn.z, yaw: spawn.yaw ?? Math.PI }
+    if (regionAtZ(spawn.z).stage === 0) {
+      p.expedition = newExpedition()
+      dispatch('expedition', p.expedition)
+    }
     dispatch('teleport', p.pos)
   }
   const resetRun = () => {
@@ -194,6 +201,32 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
   }
 
   const handlers = {
+    expedition: (m) => {
+      const issue = expeditionAction(p.expedition, p.pos, m.action, m.id)
+      if (issue) return error(issue)
+      dispatch('expedition', { ...p.expedition, dug: { ...p.expedition.dug } })
+    },
+    dev: (m) => {
+      if (!DEV_TOOLS) return
+      switch (m.action) {
+        case 'tp': {
+          const stage = Math.max(0, Math.min(STAGE_COUNT, Math.floor(Number(m.stage) || 0)))
+          p.expedition = newExpedition(stage)
+          if (stages[stage]?.digSites.length) p.expedition.tool = 'pickaxe'
+          dispatch('expedition', p.expedition)
+          profile.maxStage = Math.max(profile.maxStage, stage)
+          resetRun()
+          setPos(stageSpawn(stage))
+          break
+        }
+        case 'wins': profile.wins += Math.max(0, Math.min(1e7, Number(m.amount) || 0)); break
+        case 'level': giveSpeed(1e9, 'pack'); break
+        case 'rebirths': profile.rebirths += 1; profile.totalLevel = profile.rebirths * MAX_LEVEL + profile.level; break
+        case 'reset': Object.assign(profile, newProfile(profile.name)); resetRun(); setPos(LOBBY_SPAWN); break
+        default: return
+      }
+      changed()
+    },
     ping: (m) => dispatch('pong', { t: m.t, now: Date.now() }),
 
     pos: (m) => {
@@ -201,6 +234,13 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
       const [x, y, z, yaw, flags] = m.map(Number)
       if (![x, y, z, yaw].every(Number.isFinite)) return
       const dist = Math.hypot(x - p.pos.x, z - p.pos.z)
+      const destination = regionAtZ(z)
+      const denied = destination.inCourse && p.expedition.devStage !== destination.stage && stageAccess(profile, destination.stage)
+      if (denied) {
+        error(denied)
+        return setPos({ x: stageCenterX(destination.stage), y: 1.5, z: stageStartZ(destination.stage) + 4, yaw: Math.PI })
+      }
+      if (blockedExcavation(p.expedition, { x, y, z })) return setPos(p.pos)
       p.pos = { x, y, z, yaw }
       p.flags = flags | 0
       if ((p.flags & 2) !== 0 && dist > 0.01 && dist < 50) {
@@ -225,10 +265,8 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
     },
 
     respawn: () => {
-      const region = regionAtZ(p.pos.z)
-      if (region.stage === 0) return setPos(LOBBY_SPAWN)
-      if (region.inSafe) return setPos({ x: 0, y: 1.5, z: stageEndZ(region.stage) - 3, yaw: Math.PI })
-      return setPos(stageSpawn(region.stage))
+      resetRun()
+      setPos(LOBBY_SPAWN)
     },
 
     teleport: (m) => {
@@ -239,16 +277,22 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
       }
       if (stage > STAGE_COUNT) return undefined
       if (stage > profile.maxStage) return error(`Reach stage ${stage} first!`)
+      const denied = stageAccess(profile, stage)
+      if (denied) return error(denied)
+      p.expedition.devStage = 0
+      dispatch('expedition', { ...p.expedition })
       const cost = STAGES[stage].tp
       if (profile.wins < cost) return error('Not enough wins!')
       profile.wins -= cost
       changed()
       dispatch('sfx', { name: 'teleport' })
-      return setPos(stageSpawn(stage))
+      const rack = stages[stage - 1]?.toolRack
+      return setPos(rack && !p.expedition.tool ? { x: rack.x, y: 1.5, z: rack.z + 2, yaw: Math.PI } : stageSpawn(stage))
     },
 
     gate: (m) => {
       const stage = Number(m.stage)
+      if (!excavationComplete(p.expedition, stage) || (p.expedition.devStage !== stage && stageAccess(profile, stage))) return
       const idx = Number(m.idx)
       if (p.run.stage !== stage || p.run.gates.has(idx)) return
       const gate = stages[stage]?.gates[idx]
@@ -261,14 +305,15 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
 
     claimReturn: (m) => {
       const stage = Number(m.stage)
+      if (!excavationComplete(p.expedition, stage) || (p.expedition.devStage !== stage && stageAccess(profile, stage))) return
       const bonus = Boolean(m.bonus)
       const st = stages[stage]
-      if (!st || p.run.stage !== stage || p.run.claimed) return
+      if (!st || p.run.claimed) return error('This wins pad is not ready yet.')
       const region = regionAtZ(p.pos.z)
-      if (region.stage !== stage || !region.inSafe) return
+      if (region.stage !== stage || !region.inSafe) return error('Move onto the safe-room wins pad.')
       const pad = bonus ? st.bonusPad : st.returnPad
-      if (!inPad(pad, p.pos.x, p.pos.z, 1.5)) return
-      if (bonus && profile.wins < BONUS_PAD_MIN_WINS) return error(`Need ${BONUS_PAD_MIN_WINS} wins to unlock this pad!`)
+      if (!inPad(pad, p.pos.x, p.pos.z, 1.5)) return error('Stand on the wins pad and press E.')
+      if (bonus && profile.rebirths < BONUS_PAD_MIN_REBIRTHS) return error(`Need ${BONUS_PAD_MIN_REBIRTHS} rebirths to unlock this pad!`)
       p.run.claimed = true
       const wins = Math.round(pad.wins * (1 + profile.rebirths * REBIRTH_WIN_BONUS))
       profile.wins += wins
@@ -442,6 +487,7 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
   // Same opening the server gives: init -> client spawns at the lobby.
   const lbRow = () => [{ name: profile.name, value: 0 }]
   dispatch('init', {
+    expedition: p.expedition,
     sid: 'offline',
     roomId: 'offline',
     now: Date.now(),
@@ -453,7 +499,7 @@ export function createOfflineRoom({ name, dispatch, existing = null }) {
       rebirths: lbRow().map((r) => ({ ...r, value: profile.rebirths })),
       wins: lbRow().map((r) => ({ ...r, value: profile.wins })),
     },
-    dev: false,
+    dev: DEV_TOOLS,
   })
   dispatch('friends', { count: 0 })
 

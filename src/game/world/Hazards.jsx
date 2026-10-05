@@ -4,10 +4,11 @@ import { memo, useMemo, useRef } from 'react'
 import { DoubleSide } from 'three'
 
 import {
+  liftY,
   fallingState,
   grannyPos,
   lavaBallPos,
-  tornadoX,
+  tornadoPos,
   laserOn,
   pendulumX,
   pusherX,
@@ -17,7 +18,7 @@ import {
   tileState,
   wavePos,
 } from '../../shared/gameData'
-import { serverTime } from '../../state/store'
+import { runtime, serverTime } from '../../state/store'
 import { crackSphereMaterial, crackTexture, studMaterial } from '../textures'
 import { Body } from '../Chaser'
 
@@ -51,31 +52,44 @@ function Roller({ h }) {
 /** Tsunami: a towering curling wall of water with a foam crest, rolling towards you. */
 function Wave({ h }) {
   const ref = useRef()
+  const warning = useRef()
   const water = useMemo(() => crackTexture('#1f7fe8', '#bfeaff', [6, 2]), [])
   useFrame(() => {
     const t = serverTime()
     const w = wavePos(h, t)
+    if (warning.current) {
+      const clock = h.triggerOnEntry ? (h.activeAt == null ? -1 : t - h.activeAt + h.offset) : t + h.offset
+      const phase = ((clock % h.period) + h.period) % h.period
+      warning.current.visible = phase < h.warn
+      warning.current.material.opacity = 0.45 + Math.sin(t * 12) * 0.2
+    }
     ref.current.visible = !!w
     if (w) {
+      ref.current.position.x = w.x
       ref.current.position.z = w.z
       water.offset.y = (t * 0.6) % 1
     }
   })
   const width = h.half * 2
   return (
-    <group ref={ref}>
+    <>
+    {h.axis === 'x'
+      ? <mesh ref={warning} position={[h.x + Math.sign(h.xFrom) * 20, 0.14, h.z]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[2, width]} /><meshBasicMaterial color="#ffdf36" transparent depthWrite={false} /></mesh>
+      : <mesh ref={warning} position={[h.x || 0, 0.14, h.zFrom ?? h.z]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[width, 2]} /><meshBasicMaterial color="#ffdf36" transparent depthWrite={false} /></mesh>
+    }
+    <group ref={ref} position={[h.x || 0, 0, 0]} rotation={[0, h.axis === 'x' ? Math.sign(h.xTo - h.xFrom) * Math.PI / 2 : 0, 0]}>
       {/* Back slope, main wall and the overhanging curl. */}
       <mesh position={[0, 2.5, -2.6]} rotation={[-0.5, 0, 0]}>
         <boxGeometry args={[width, 5, 4]} />
-        <meshStandardMaterial map={water} transparent opacity={0.8} emissive="#0b4fa8" emissiveIntensity={0.35} />
+        <meshStandardMaterial map={water} roughness={0.5} emissive="#0b4fa8" emissiveIntensity={0.2} />
       </mesh>
       <mesh position={[0, 3.8, 0]}>
         <boxGeometry args={[width, 7.6, 2.4]} />
-        <meshStandardMaterial map={water} transparent opacity={0.88} emissive="#0b4fa8" emissiveIntensity={0.4} />
+        <meshStandardMaterial map={water} roughness={0.5} emissive="#0b4fa8" emissiveIntensity={0.2} />
       </mesh>
       <mesh position={[0, 7.4, 1.0]} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[1.6, 1.6, width, 20, 1, false, 0, Math.PI]} />
-        <meshStandardMaterial map={water} transparent opacity={0.9} emissive="#1a6fd0" emissiveIntensity={0.4} side={DoubleSide} />
+        <meshStandardMaterial map={water} roughness={0.5} emissive="#1a6fd0" emissiveIntensity={0.2} side={DoubleSide} />
       </mesh>
       {/* Foam crest and spray at the foot. */}
       <mesh position={[0, 8.9, 0.6]}>
@@ -84,9 +98,10 @@ function Wave({ h }) {
       </mesh>
       <mesh position={[0, 0.5, 1.6]}>
         <boxGeometry args={[width, 1, 1.2]} />
-        <meshStandardMaterial color="#e8f8ff" transparent opacity={0.85} emissive="#bfe9ff" emissiveIntensity={0.4} />
+        <meshStandardMaterial color="#e8f8ff" roughness={0.8} emissive="#bfe9ff" emissiveIntensity={0.15} />
       </mesh>
     </group>
+    </>
   )
 }
 
@@ -96,7 +111,8 @@ function Tornado({ h }) {
   const spin = useRef()
   const rings = useMemo(() => Array.from({ length: 6 }, (_, i) => i), [])
   useFrame((_s, dt) => {
-    ref.current.position.x = tornadoX(h, serverTime())
+    const p = tornadoPos(h, serverTime())
+    ref.current.position.set(p.x, 0, p.z)
     spin.current.rotation.y += dt * 6
   })
   return (
@@ -112,7 +128,7 @@ function Tornado({ h }) {
             </mesh>
           )
         })}
-        {rings.map((i) => (
+      {rings.map((i) => (
           <mesh key={`d${i}`} position={[Math.cos(i) * (h.r + 0.6 + i * 0.3), 1.5 + i * 1.8, Math.sin(i) * (h.r + 0.6 + i * 0.3)]} rotation={[i, i * 2, 0]}>
             <boxGeometry args={[0.6, 0.6, 0.6]} />
             <meshStandardMaterial color="#8a6a4a" />
@@ -211,10 +227,10 @@ function Pendulum({ h }) {
   })
   return (
     <group>
-      <mesh position={[0, 9, h.z]} material={studMaterial('#6b4423')}>
+      <mesh position={[h.x || 0, 9, h.z]} material={studMaterial('#6b4423')}>
         <boxGeometry args={[h.amp * 2 + 6, 0.8, 0.8]} />
       </mesh>
-      <group ref={ref} position={[0, 0, h.z]}>
+      <group ref={ref} position={[h.x || 0, 0, h.z]}>
         <mesh position={[0, 5.4, 0]}>
           <boxGeometry args={[0.15, 7, 0.15]} />
           <meshStandardMaterial color="#c9a26b" />
@@ -234,7 +250,7 @@ function Laser({ h }) {
     beam.current.visible = on
   })
   return (
-    <group position={[0, h.y, h.z]}>
+    <group position={[h.x || 0, h.y, h.z]}>
       <mesh ref={beam} rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.09, 0.09, h.half * 2, 8]} />
         <meshBasicMaterial color={h.color} toneMapped={false} />
@@ -255,13 +271,19 @@ function Tile({ h }) {
   const last = useRef(null)
   useFrame(() => {
     const s = tileState(h, serverTime())
-    if (s.solid !== last.current) {
-      body.current?.setEnabled(s.solid)
-      last.current = s.solid
+    // Keep a fading tile solid until its rider has stepped off. This prevents
+    // a cycle boundary from dropping a wheelchair straight into the river.
+    const me = runtime.me
+    const occupied = me.stage === h.stage && Math.abs(me.x - h.x) < h.w / 2 + 0.6 &&
+      Math.abs(me.z - h.z) < h.d / 2 + 0.6 && me.y < h.y + h.h + 2.2
+    const solid = s.solid || occupied
+    if (solid !== last.current) {
+      body.current?.setEnabled(solid)
+      last.current = solid
     }
-    mesh.current.visible = s.solid
-    const shake = s.warn ? Math.sin(performance.now() / 28) * 0.1 : 0
-    mesh.current.position.set(shake, s.warn ? -0.08 : 0, 0)
+    mesh.current.visible = solid
+    const shake = s.warn && !occupied ? Math.sin(performance.now() / 28) * 0.1 : 0
+    mesh.current.position.set(shake, s.warn && !occupied ? -0.08 : 0, 0)
     mesh.current.material.emissiveIntensity = s.warn ? 0.7 : 0
   })
   return (
@@ -275,23 +297,16 @@ function Tile({ h }) {
   )
 }
 
-/** Lava that floods a walkway in waves: glows first, then rises. */
+/** Flood warning; the river itself renders the rising liquid. */
 function Tide({ h }) {
-  const lava = useRef()
   const warn = useRef()
   useFrame(() => {
     const s = tideLevel(h, serverTime())
-    lava.current.visible = s.level > -0.9
-    lava.current.position.y = s.level - 1.1
     warn.current.visible = s.warn
     warn.current.material.opacity = 0.35 + Math.sin(performance.now() / 60) * 0.25
   })
   return (
     <group position={[h.x, 0, h.z]}>
-      <mesh ref={lava}>
-        <boxGeometry args={[h.w, 2.2, h.d]} />
-        <meshStandardMaterial color={h.color} emissive={h.color} emissiveIntensity={0.9} />
-      </mesh>
       <mesh ref={warn} position={[0, 0.07, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[h.w, h.d]} />
         <meshBasicMaterial color="#ff5a1a" transparent opacity={0.5} depthWrite={false} toneMapped={false} />
@@ -300,7 +315,18 @@ function Tide({ h }) {
   )
 }
 
+function Lift({ h }) {
+  const body = useRef()
+  useFrame(() => body.current?.setNextKinematicTranslation({ x: h.x, y: liftY(h, serverTime()), z: h.z }))
+  return <RigidBody ref={body} type="kinematicPosition" colliders={false} position={[h.x, liftY(h, serverTime()), h.z]} friction={1}>
+    <CuboidCollider args={[h.w / 2, h.h / 2, h.d / 2]} />
+    <mesh material={studMaterial(h.color)} receiveShadow castShadow><boxGeometry args={[h.w, h.h, h.d]} /></mesh>
+    <mesh position={[0, h.h / 2 + 0.025, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[2, 2.2, 32]} /><meshBasicMaterial color="#ffffff" /></mesh>
+  </RigidBody>
+}
+
 const COMPONENTS = {
+  lift: Lift,
   tile: Tile,
   tide: Tide,
   spike: Spike,

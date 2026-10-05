@@ -9,7 +9,7 @@ import { useBloxity } from '../bloxity/BloxityContext'
  * name to show.
  */
 export function AuthHUD() {
-  const { identity, isLoggedIn, login, logout, status } = useBloxity()
+  const { identity, isLoggedIn } = useBloxity()
   const [muted, setM] = useState(isMuted())
 
   const name = identity?.displayName || identity?.username || 'Guest'
@@ -28,15 +28,6 @@ export function AuthHUD() {
       >
         {muted ? '🔇' : '🔊'}
       </button>
-      {isLoggedIn ? (
-        <button className="pill" onClick={logout}>
-          Log out
-        </button>
-      ) : (
-        <button className="pill violet" onClick={login} disabled={status !== 'ready'}>
-          {status === 'ready' ? 'Log in' : '…'}
-        </button>
-      )}
       <div className="idc">
         {pfp ? <img src={pfp} alt="" /> : <div className="pfp">{name.charAt(0).toUpperCase()}</div>}
         <div>

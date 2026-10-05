@@ -37,6 +37,7 @@ export function useKeyboard() {
     }
 
     const onKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable) return
       if (KEY_MAP[e.code]) e.preventDefault() // stop Space scrolling the page
       set(e.code, true)
     }

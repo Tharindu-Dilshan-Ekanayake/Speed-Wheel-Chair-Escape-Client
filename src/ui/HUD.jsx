@@ -4,7 +4,6 @@ import { play } from '../audio/sfx'
 import { send } from '../net/net'
 import {
   DAILY_COOLDOWN_MS,
-  FRIEND_BOOST_PER_PLAYER,
   MAX_LEVEL,
   REBIRTH_SPEED_BONUS,
   SPEED_PACKS,
@@ -88,8 +87,8 @@ function CustomSpeed({ profile }) {
 
 export function HUD() {
   const profile = useGame((s) => s.profile)
-  const friends = useGame((s) => s.friends)
   const setPanel = useGame((s) => s.setPanel)
+  const [showControls, setShowControls] = useState(false)
   const now = useNow(1000)
   if (!profile) return null
 
@@ -108,6 +107,13 @@ export function HUD() {
 
   return (
     <div className="hud">
+      <button className="controls-btn otl" onClick={() => setShowControls((v) => !v)} aria-expanded={showControls}>⌨ Controls</button>
+      {showControls && <div className="controls-card otl">
+        <button className="controls-close" onClick={() => setShowControls(false)} aria-label="Close controls">×</button>
+        <strong>CONTROLS</strong>
+        <span><b>W / S</b> Drive / reverse</span><span><b>A / D</b> Turn</span><span><b>SPACE</b> Jump</span>
+        <span><b>SHIFT</b> Carry chair</span><span><b>E</b> Interact</span><span><b>R / T / P / U / I / G</b> Menus</span>
+      </div>}
       {/* LEFT: stats + menu (top-left corner left empty for platform logos) */}
       <div className="left-col">
         <div className="stat-row otl">
@@ -174,19 +180,6 @@ export function HUD() {
         </div>
       </div>
 
-      <div className="friend">
-        <span className="t otl">Friend Boost: {Math.round(Math.min(friends, 7) * FRIEND_BOOST_PER_PLAYER * 100)}%</span>
-        <button
-          className="plus otl"
-          title="Invite friends: +10% speed for each player in your lobby"
-          onClick={() => {
-            play('click')
-            useGame.getState().toast('Invite friends! +10% speed for every player in your lobby (max 70%)')
-          }}
-        >
-          +
-        </button>
-      </div>
     </div>
   )
 }

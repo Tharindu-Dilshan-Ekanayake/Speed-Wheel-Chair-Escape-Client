@@ -2,7 +2,7 @@ import {
   fallingState,
   grannyPos,
   lavaBallPos,
-  tornadoX,
+  tornadoPos,
   tideLevel,
   laserOn,
   pendulumX,
@@ -33,7 +33,7 @@ export function checkKill(stage, x, y, z, t) {
       feet <= b.y + b.h / 2 + 0.05 &&
       head >= b.y - b.h / 2
     ) {
-      return 'lava'
+      return b.cause || 'lava'
     }
   }
 
@@ -50,7 +50,7 @@ export function checkKill(stage, x, y, z, t) {
       }
       case 'wave': {
         const w = wavePos(h, t)
-        if (w && Math.abs(z - w.z) < 2.4 && Math.abs(x) < h.half - 0.2 && feet < 7) {
+        if (w && (h.axis === 'x' ? Math.abs(x - w.x) < 2.4 && Math.abs(z - w.z) < h.half : Math.abs(z - w.z) < 2.4 && Math.abs(x - w.x) < h.half) && feet < 9) {
           const sheltered = h.shelters.some((sh) => Math.abs(x - sh.x) < sh.w / 2 && Math.abs(z - sh.z) < sh.d / 2)
           if (!sheltered) return 'wave'
         }
@@ -98,8 +98,8 @@ export function checkKill(stage, x, y, z, t) {
         break
       }
       case 'tide': {
-        const lv = tideLevel(h, t).level
-        if (lv > 0.1 && Math.abs(x - h.x) < h.w / 2 + R && Math.abs(z - h.z) < h.d / 2 + R && feet < lv) return 'lava'
+        const level = tideLevel(h, t).level
+        if (Math.abs(x - h.x) < h.w / 2 + R && Math.abs(z - h.z) < h.d / 2 + R && feet < level) return h.cause || 'lava'
         break
       }
       case 'granny': {
@@ -113,7 +113,11 @@ export function checkKill(stage, x, y, z, t) {
         break
       }
       case 'tornado': {
-        if (feet < h.h && Math.hypot(x - tornadoX(h, t), z - h.z) < h.r * 0.75 + R) return 'tornado'
+        const p = tornadoPos(h, t)
+        if (feet < h.h && Math.hypot(x - p.x, z - p.z) < h.r * 0.75 + R) {
+          const sheltered = h.shelters?.some((sh) => Math.abs(x - sh.x) < sh.w / 2 && Math.abs(z - sh.z) < sh.d / 2)
+          if (!sheltered) return 'tornado'
+        }
         break
       }
       case 'lavaBall': {
@@ -122,7 +126,7 @@ export function checkKill(stage, x, y, z, t) {
         break
       }
       case 'laser': {
-        if (laserOn(h, t) && Math.abs(z - h.z) < 0.35 + R && Math.abs(x) < h.half && feet < h.y + 0.08 && head > h.y) {
+        if (laserOn(h, t) && Math.abs(z - h.z) < 0.35 + R && Math.abs(x - (h.x || 0)) < h.half && feet < h.y + 0.08 && head > h.y) {
           return 'laser'
         }
         break

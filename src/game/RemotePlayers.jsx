@@ -54,6 +54,8 @@ const RemotePlayer = memo(function RemotePlayer({ data }) {
     m.push = Math.min(1, effective / 5)
     m.phase += dt * (2.5 + effective * 0.55)
     m.grounded = (flags & 2) !== 0 || Math.abs(t.ty - p.y) < 0.05
+    m.carrying = (flags & 8) !== 0
+    m.speed = moved
     m.wheel += effective * dt / 0.55
     movingRef.current = moved > 0.5 || onTread
   })

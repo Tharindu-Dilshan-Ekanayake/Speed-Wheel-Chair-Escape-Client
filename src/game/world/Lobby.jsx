@@ -227,6 +227,17 @@ function Egg({ spot, egg, profile }) {
             <meshStandardMaterial color={egg.spots} />
           </mesh>
         ))}
+        <group position={[0, -0.05, 1.12]}>
+          {[-0.3, 0.3].map((x) => <mesh key={x} position={[x, 0.18, 0]} scale={[0.1, 0.14, 0.07]}>
+            <sphereGeometry args={[1, 12, 8]} /><meshStandardMaterial color="#30203e" roughness={0.3} />
+          </mesh>)}
+          {[-0.52, 0.52].map((x) => <mesh key={x} position={[x, -0.03, 0]} scale={[0.16, 0.08, 0.05]}>
+            <sphereGeometry args={[1, 12, 8]} /><meshBasicMaterial color="#ff8bac" />
+          </mesh>)}
+          <mesh position={[0, -0.13, 0]} scale={[0.1, 0.06, 0.05]}>
+            <sphereGeometry args={[1, 12, 8]} /><meshBasicMaterial color="#a84662" />
+          </mesh>
+        </group>
       </group>
       <Label
         text={[{ text: egg.name, size: 0.7 }, status]}

@@ -1,56 +1,52 @@
 import { send } from '../net/net'
-import { STAGE_COUNT } from '../shared/gameData'
-import { runtime, useGame } from '../state/store'
+import { STAGES, STAGE_COUNT, THEMES, stageEndZ, stageStartZ } from '../shared/gameData'
+import { useGame } from '../state/store'
 
-/**
- * Developer tool: jump between stages, give yourself wins, etc.
- * Toggle with F2 or the pink DEV button. Disabled entirely when the server reports
- * DEV_TOOLS = false (see src/shared/gameData.js).
- */
 export function DevPanel() {
   const dev = useGame((s) => s.dev)
   const open = useGame((s) => s.devOpen)
   const view = useGame((s) => s.viewStage)
   if (!dev) return null
+  const jump = (stage) => send('dev', { action: 'tp', stage })
   return (
     <div className="hud" style={{ zIndex: 25 }}>
-      <button className="dev-toggle" onClick={() => useGame.setState({ devOpen: !open })}>
-        DEV (F2)
-      </button>
+      <button className="dev-toggle" aria-expanded={open} onClick={() => useGame.setState({ devOpen: !open })}>STAGE LAB · F2</button>
       {open && (
-        <div className="dev">
-          <h4>🛠 Dev tool - remove before launch</h4>
-          <div style={{ marginBottom: 6 }}>
-            Region: {view === 0 ? 'Lobby' : `Stage ${view}`} • pos {runtime.me.x.toFixed(0)}, {runtime.me.z.toFixed(0)}
+        <section className="dev" aria-label="Stage developer tools">
+          <div className="dev-heading"><div><small>DEVELOPER TOOLS</small><h4>Adventure atlas</h4></div>
+            <button aria-label="Close stage lab" onClick={() => useGame.setState({ devOpen: false })}>×</button>
           </div>
-          <div>Teleport to stage:</div>
-          <div className="grid">
-            <button onClick={() => send('dev', { action: 'tp', stage: 0 })}>Lobby</button>
-            {Array.from({ length: STAGE_COUNT }, (_, i) => i + 1).map((k) => (
-              <button key={k} onClick={() => send('dev', { action: 'tp', stage: k })}>
-                Stage {k}
+          <p>{STAGE_COUNT} worlds · Select a card to play from its entrance. Mine stages include a pickaxe.</p>
+          <div className="dev-nav">
+            <button onClick={() => jump(Math.max(0, view - 1))} disabled={view === 0}>Previous</button>
+            <button onClick={() => jump(view)}>Restart</button>
+            <button onClick={() => jump(Math.min(STAGE_COUNT, view + 1))} disabled={view === STAGE_COUNT}>Next</button>
+            <button onClick={() => jump(0)}>Lobby</button>
+          </div>
+          <div className="stage-atlas">
+            {STAGES.slice(1).map((stage, i) => {
+              const k = i + 1
+              const theme = THEMES[k]
+              return <button key={k} className={`atlas-card ${view === k ? 'selected' : ''}`} style={{ '--stage-color': theme.accent }} aria-pressed={view === k} onClick={() => jump(k)} title={stage.hint}>
+                <span className="atlas-number">{String(k).padStart(2, '0')} {theme.mascot}</span>
+                <strong>{theme.name}</strong><span>{stage.adventure}</span>
+                <small>{stageStartZ(k) - stageEndZ(k)} m · Level {stage.rec}</small>
               </button>
-            ))}
+            })}
           </div>
-          <div className="grid">
+          <div className="dev-nav">
             <button onClick={() => send('dev', { action: 'wins', amount: 100 })}>+100 wins</button>
             <button onClick={() => send('dev', { action: 'wins', amount: 10000 })}>+10K wins</button>
             <button onClick={() => send('dev', { action: 'level' })}>Max level</button>
             <button onClick={() => send('dev', { action: 'rebirths' })}>+1 rebirth</button>
           </div>
-          <div className="grid">
-            <button
-              onClick={() => {
-                if (window.confirm('Reset this profile to a fresh start?')) send('dev', { action: 'reset' })
-              }}
-            >
-              Reset profile
-            </button>
-          </div>
-        </div>
+          <small>WASD drive · SPACE jump · Hold SHIFT to carry</small>
+          <div className="dev-nav"><button onClick={() => {
+            if (window.confirm('Reset this profile to a fresh start?')) send('dev', { action: 'reset' })
+          }}>Reset profile</button></div>
+        </section>
       )}
     </div>
   )
 }
-
 export default DevPanel

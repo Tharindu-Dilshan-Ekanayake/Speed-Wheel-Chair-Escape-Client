@@ -95,9 +95,9 @@ const materialCache = new Map()
  */
 export function studMaterial(
   color,
-  { emissive = null, emissiveIntensity = 0.6, studs = true, texture = null, tile = STUD } = {},
+  { emissive = null, emissiveIntensity = 0.6, studs = true, texture = null, tile = STUD, checker = false } = {},
 ) {
-  const key = `${color}|${emissive}|${emissiveIntensity}|${studs}|${texture?.uuid}|${tile}`
+  const key = `${color}|${emissive}|${emissiveIntensity}|${studs}|${texture?.uuid}|${tile}|${checker}`
   if (materialCache.has(key)) return materialCache.get(key)
 
   const mat = new MeshStandardMaterial({
@@ -105,6 +105,9 @@ export function studMaterial(
     map: texture || (studs ? getStudTexture() : null),
     roughness: 0.82,
     metalness: 0,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
   })
   if (emissive) {
     mat.emissive = new Color(emissive)
@@ -132,10 +135,15 @@ export function studMaterial(
            vec4 tx = texture2D(map, vTriPos.zy * uStud);
            vec4 ty = texture2D(map, vTriPos.xz * uStud);
            vec4 tz = texture2D(map, vTriPos.xy * uStud);
-           diffuseColor *= tx * bw.x + ty * bw.y + tz * bw.z;`,
+           diffuseColor *= tx * bw.x + ty * bw.y + tz * bw.z;
+           ${checker ? `vec3 cells = floor(vTriPos / 3.0);
+           float checks = mod(cells.y + cells.z, 2.0) * bw.x
+             + mod(cells.x + cells.z, 2.0) * bw.y
+             + mod(cells.x + cells.y, 2.0) * bw.z;
+           diffuseColor.rgb *= mix(0.72, 1.0, checks);` : ''}`,
         )
     }
-    mat.customProgramCacheKey = () => 'studs-triplanar'
+    mat.customProgramCacheKey = () => `studs-triplanar-${checker}`
   }
   materialCache.set(key, mat)
   return mat
@@ -144,7 +152,16 @@ export function studMaterial(
 const neonCache = new Map()
 /** Unlit, tone-mapping-free colour: reads as a glowing tube / light strip. */
 export function neonMaterial(color) {
-  if (!neonCache.has(color)) neonCache.set(color, new MeshBasicMaterial({ color: new Color(color), toneMapped: false }))
+  if (!neonCache.has(color)) {
+    neonCache.set(color, new MeshBasicMaterial({
+      color: new Color(color),
+      toneMapped: false,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }))
+  }
   return neonCache.get(color)
 }
 
