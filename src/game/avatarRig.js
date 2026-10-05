@@ -395,6 +395,19 @@ export function animateRig(rig, motion) {
  */
 export function animateSeated(rig, motion) {
   if (!rig?.skeleton || !motion) return
+  if (motion.carrying) {
+    animateRig(rig, motion)
+    // Reset the arms after the walking pose, then hold the chair above the head.
+    for (const name of ['ArmL1', 'ArmR1', 'ArmL2', 'ArmR2']) {
+      const bone = rig.bones[name]
+      if (bone) bone.bone.quaternion.copy(bone.origQuat)
+    }
+    swing(rig, 'ArmL1', -2.8)
+    swing(rig, 'ArmR1', -2.8)
+    sway(rig, 'ArmL1', -0.18)
+    sway(rig, 'ArmR1', 0.18)
+    return
+  }
   const { push = 0, phase = 0, grounded = true, time = 0 } = motion
 
   rig.root.position.y = rig.rootRestY

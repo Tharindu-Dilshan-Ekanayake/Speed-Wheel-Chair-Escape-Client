@@ -46,8 +46,20 @@ export function TouchControls() {
         <div className="knob" ref={knob} />
       </div>
       <button
+        className="carry-btn"
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          runtime.touch.carry = true
+        }}
+        onPointerUp={() => (runtime.touch.carry = false)}
+        onPointerCancel={() => (runtime.touch.carry = false)}
+        onLostPointerCapture={() => (runtime.touch.carry = false)}
+      >
+        CARRY
+      </button>
+      <button
         className="jump-btn"
-        onPointerDown={() => (runtime.touch.jump = true)}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); runtime.touch.jump = true }}
         onPointerUp={() => (runtime.touch.jump = false)}
         onPointerCancel={() => (runtime.touch.jump = false)}
       >

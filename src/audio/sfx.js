@@ -103,8 +103,10 @@ const SOUNDS = {
     tone(1568, { dur: 0.6, type: 'triangle', vol: 0.2, at: 0.42 })
   },
   win: () => {
-    ;[784, 988, 1175, 1568].forEach((f, i) => tone(f, { dur: 0.2, type: 'triangle', vol: 0.25, at: i * 0.09 }))
-    noise({ dur: 0.4, vol: 0.08, at: 0.3, filter: 6000 })
+    ;[523, 659, 784, 988, 1175, 1568].forEach((f, i) => tone(f, { dur: 0.24, type: 'triangle', vol: 0.22, at: i * 0.075 }))
+    tone(1047, { dur: 0.75, type: 'sine', vol: 0.16, at: 0.35, slide: 180 })
+    tone(1568, { dur: 0.6, type: 'triangle', vol: 0.12, at: 0.42, slide: 240 })
+    noise({ dur: 0.45, vol: 0.07, at: 0.38, filter: 6500 })
   },
   buy: () => {
     tone(880, { dur: 0.08, type: 'square', vol: 0.12 })
@@ -145,26 +147,26 @@ const SOUNDS = {
   chaser: () => tone(160, { dur: 0.4, type: 'sawtooth', vol: 0.1, slide: 60 }),
 }
 
-/* Wheelchair rolling: a soft airy "shhh" of rubber wheels whose brightness and volume follow
- * the speed. Deliberately no low hum - that reads as an engine. */
+/* Wheelchair rolling: a light bicycle-pedal / chain rhythm. This replaces the
+ * old airy wind loop, so movement sounds mechanical and hand-powered. */
 let roll = null
 function ensureRoll() {
   if (roll || !ctx) return
   const len = ctx.sampleRate * 2
   const buf = ctx.createBuffer(1, len, ctx.sampleRate)
   const data = buf.getChannelData(0)
-  let last = 0
   for (let i = 0; i < len; i += 1) {
-    // Gently smoothed white noise: soft hiss without any rumble.
-    last = last * 0.55 + (Math.random() * 2 - 1) * 0.45
-    data[i] = last
+    const phase = (i / ctx.sampleRate * 4.2) % 1
+    const pedalClick = phase < 0.055 ? Math.sin(phase * Math.PI / 0.055 * 8) * Math.exp(-phase * 46) : 0
+    const chainRattle = (Math.random() * 2 - 1) * 0.035
+    data[i] = pedalClick * 0.42 + chainRattle
   }
   const src = ctx.createBufferSource()
   src.buffer = buf
   src.loop = true
   const filter = ctx.createBiquadFilter()
   filter.type = 'bandpass'
-  filter.frequency.value = 700
+  filter.frequency.value = 900
   filter.Q.value = 0.5
   const gain = ctx.createGain()
   gain.gain.value = 0
@@ -181,8 +183,47 @@ export function setRoll(level) {
   ensureRoll()
   const t = ctx.currentTime
   const v = muted ? 0 : level
-  roll.gain.gain.setTargetAtTime(v * 0.1, t, 0.08)
-  roll.filter.frequency.setTargetAtTime(600 + level * 1400, t, 0.12)
+  roll.gain.gain.setTargetAtTime(v * 0.16, t, 0.08)
+  roll.filter.frequency.setTargetAtTime(700 + level * 1200, t, 0.12)
+}
+
+/* Carrying the chair uses feet instead of wheels: a separate, soft footfall
+ * loop makes the SHIFT/carry state immediately recognisable. */
+let carryRun = null
+function ensureCarryRun() {
+  if (carryRun || !ctx) return
+  const len = ctx.sampleRate * 2
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < len; i += 1) {
+    const phase = (i / ctx.sampleRate * 2.6) % 1
+    const thump = phase < 0.16 ? Math.sin(phase * Math.PI / 0.16 * 2.2) * Math.exp(-phase * 18) : 0
+    const shoe = phase < 0.04 ? (Math.random() * 2 - 1) * Math.exp(-phase * 70) : 0
+    data[i] = thump * 0.5 + shoe * 0.2
+  }
+  const src = ctx.createBufferSource()
+  src.buffer = buf
+  src.loop = true
+  const filter = ctx.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.value = 360
+  const gain = ctx.createGain()
+  gain.gain.value = 0
+  src.connect(filter)
+  filter.connect(gain)
+  gain.connect(master)
+  src.start()
+  carryRun = { filter, gain }
+}
+
+/** @param {number} level 0 (not carrying/still) .. 1 (full carry speed). */
+export function setCarryRun(level) {
+  if (!ctx || !master) return
+  ensureCarryRun()
+  const t = ctx.currentTime
+  const v = muted ? 0 : level
+  carryRun.gain.gain.setTargetAtTime(v * 0.2, t, 0.07)
+  carryRun.filter.frequency.setTargetAtTime(260 + level * 180, t, 0.1)
 }
 
 let lastStep = 0

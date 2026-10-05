@@ -64,7 +64,7 @@ function BigPopup() {
     )
   }
   return (
-    <div className="big-popup center" key={pop.id}>
+    <div className={`big-popup center ${pop.kind}`} key={pop.id}>
       <span className="emoji">{pop.kind === 'rebirth' ? '🔄' : '🏆'}</span>
       <span className="main otl" style={{ color: pop.kind === 'wins' ? '#ffe14d' : '#7fd8ff' }}>
         {pop.text}
@@ -78,6 +78,8 @@ function Death() {
   const dead = useGame((s) => s.dead)
   if (!dead) return null
   const msg = {
+    water: 'Swept into the river!',
+    tornado: 'Caught by the tornado!',
     fall: 'You fell! 😵',
     lava: 'Burned! 🔥',
     chaser: 'Caught! 😱',
@@ -101,12 +103,12 @@ function NetOverlay() {
     )
   }
   return (
-    <div className="net-overlay">
-      <div className="chair">♿💨</div>
-      <div className="title otl">+1 Speed Wheel Chair Escape</div>
-      <div className="otl" style={{ fontSize: 'calc(var(--u)*3)' }}>
-        {net === 'error' ? `Can't reach the server - retrying… (${err})` : 'Finding a lobby…'}
-      </div>
+    <div className="net-overlay loading-screen">
+      <div className="loading-orbit"><span>♿</span></div>
+      <div className="title otl">+1 SPEED WHEEL CHAIR ESCAPE</div>
+      <div className="loading-sub otl">{net === 'error' ? 'Starting guest mode…' : 'Loading your racer…'}</div>
+      <div className="loading-track"><div /></div>
+      <div className="loading-note">Your Bloxity account loads automatically. No account? You’ll play as Guest.</div>
     </div>
   )
 }
@@ -159,27 +161,9 @@ function HatchAnim({ hatch }) {
   )
 }
 
-function Help() {
-  const [show, setShow] = useState(true)
-  const profile = useGame((s) => s.profile)
-  useEffect(() => {
-    const id = setTimeout(() => setShow(false), 14000)
-    return () => clearTimeout(id)
-  }, [])
-  if (!show || !profile || profile.stagesCleared > 2) return null
-  return (
-    <div className="help otl">
-      W / S drive • A / D turn • Space jump • E interact
-      <br />
-      Escape the stages through the golden gate to earn 🏆 Wins!
-    </div>
-  )
-}
-
 export function Overlays() {
   return (
     <div className="hud" style={{ zIndex: 15 }}>
-      <Help />
       <Prompt />
       <Toasts />
       <LevelBanner />

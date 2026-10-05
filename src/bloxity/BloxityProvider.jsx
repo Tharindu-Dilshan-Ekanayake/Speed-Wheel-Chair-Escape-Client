@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import { BloxityContext } from './BloxityContext'
 import { getSDK, safeCall, toUnsubscribe, waitForSDK } from './sdk'
@@ -179,22 +179,6 @@ export function BloxityProvider({ gameSlug, children }) {
     }
   }, [slug])
 
-  const login = useCallback(() => {
-    const sdk = sdkRef.current || getSDK()
-    if (!sdk) {
-      console.warn('[bloxity] login() called before the SDK was ready')
-      return
-    }
-    // Login state arrives via onUserChanged — deliberately nothing to await here.
-    safeCall(sdk.auth.showAuthPopup?.bind(sdk.auth))
-  }, [])
-
-  const logout = useCallback(() => {
-    const sdk = sdkRef.current || getSDK()
-    if (!sdk) return
-    safeCall(sdk.auth.logout?.bind(sdk.auth))
-  }, [])
-
   // Loading-screen + room helpers, exposed so gameplay code doesn't reach for
   // `window.Legion` directly.
   const game = useMemo(
@@ -217,14 +201,12 @@ export function BloxityProvider({ gameSlug, children }) {
       isLoggedIn: Boolean(user),
       /** Always something displayable, per the getUser() || getGuest() pattern. */
       identity: user || guest,
-      login,
-      logout,
       avatar: equipped,
       proportions: proportions || DEFAULT_PROPORTIONS,
       game,
       gameSlug: slug,
     }),
-    [status, error, user, guest, equipped, proportions, login, logout, game, slug],
+    [status, error, user, guest, equipped, proportions, game, slug],
   )
 
   return <BloxityContext.Provider value={value}>{children}</BloxityContext.Provider>

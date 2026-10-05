@@ -171,7 +171,7 @@ export const SPEED_PACKS = [
 ]
 
 /** The 2x wins pad stays locked until you hold this many wins (they are not spent). */
-export const BONUS_PAD_MIN_WINS = 100
+export const BONUS_PAD_MIN_REBIRTHS = 2
 
 export const X2_BOOST = { price: 40, minutes: 10 }
 
@@ -237,11 +237,13 @@ export const LOBBY_HALF = 42
 /** Thickness of the lobby's outer walls; the stage-1 gate is a tunnel this long. */
 export const LOBBY_WALL = 6
 export const LOBBY_SPAWN = { x: 0, y: 1.5, z: 16, yaw: Math.PI }
-/** Stage corridors are 44m wide; the lobby gate that leads into stage 1 stays narrow. */
-// Wide enough for the wheelchair to dodge cleanly while leaving room for scenery.
-export const CORRIDOR_W = 88
+/** Stage corridors leave room to dodge without stretching the scenery into a sparse hallway. */
+export const CORRIDOR_W = 44
 export const GATE_W = 18
 export const WALL_H = 20
+export const STAGE_GATE_H = 16
+/** Width of every safe-room/stage doorway. Entry barriers use this exact opening. */
+export const STAGE_DOOR_W = 14
 export const SAFE_ROOM_LEN = 40
 
 export const LOBBY = {
@@ -264,94 +266,117 @@ export const LOBBY = {
   gate: { x: 0, z: -LOBBY_HALF },
 }
 
-const THEMES = [
+export const THEMES = [
   null,
-  { name: 'Sunset Academy', mascot: '🔥', floor: '#aeb8cf', wall: '#b7222c', wall2: '#ffd23d', accent: '#ff5b33', sky: '#301421', kill: '#ff5a1a', cell: '#32100b' },
-  { name: "Grandma's Blue House", mascot: '👵', floor: '#1679c9', wall: '#073d91', wall2: '#1168d8', accent: '#35e8ff', sky: '#0b2d70', kill: '#24bfff' },
-  { name: 'Green Reactor', mascot: '☢️', floor: '#167445', wall: '#0a301d', wall2: '#16a653', accent: '#b7ff2a', sky: '#071d14', kill: '#63ff2b', cell: '#102816' },
-  { name: 'Lava Citadel', mascot: '🔥', floor: '#8f93bc', wall: '#3b405e', wall2: '#ff7922', accent: '#ffd34d', sky: '#252942', kill: '#ff6a00' },
-  { name: 'Tsunami Bay', mascot: '🌊', floor: '#168bc9', wall: '#0753a0', wall2: '#26cbff', accent: '#e8fbff', sky: '#0a4f94', kill: '#1e90ff', arrow: true },
-  { name: 'Candy City', mascot: '🍭', floor: '#ffb3e6', wall: '#ff6fcf', wall2: '#ffffff', accent: '#ff3d9a', sky: '#ffe3f6', kill: '#ff2e7a' },
-  { name: 'Ice Cave', mascot: '🥶', snow: true, floor: '#d6f3ff', wall: '#8fdcff', wall2: '#c7efff', accent: '#2aa8ff', sky: '#e8fbff', kill: '#3fa9ff' },
-  { name: 'Jungle Ruins', mascot: '🐍', floor: '#79c94a', wall: '#3f8f2a', wall2: '#8a5a2b', accent: '#ffd23d', sky: '#d6ffc4', kill: '#3d7a1a' },
-  { name: 'Tornado Desert', mascot: '🌪️', floor: '#f2d27a', wall: '#d9a74a', wall2: '#f5e1a4', accent: '#00b3b3', sky: '#fff1c4', kill: '#ff7a00' },
-  { name: 'Laser Lab', mascot: '🤖', floor: '#3a3f5c', wall: '#22263a', wall2: '#00e0ff', accent: '#ff2e63', sky: '#9aa6d6', kill: '#ff1744' },
-  { name: 'Haunted Manor', mascot: '👻', floor: '#5b4a7a', wall: '#3a2b52', wall2: '#7a5aa8', accent: '#b8ff3a', sky: '#8a7aa8', kill: '#9b30ff' },
-  { name: 'Volcano Core', mascot: '🌋', floor: '#4a3a3a', wall: '#2a1a1a', wall2: '#ff5a1a', accent: '#ffb300', sky: '#ffb08a', kill: '#ff3d00' },
-  { name: 'Space Station', mascot: '👽', floor: '#3a4a7a', wall: '#1a2350', wall2: '#5a7aff', accent: '#39ff14', sky: '#4a5a9a', kill: '#ff2bd6' },
-  { name: 'Storm Peak', mascot: '⚡', snow: true, floor: '#a0a8b8', wall: '#5a6278', wall2: '#ffe83b', accent: '#ffe83b', sky: '#c8d0e0', kill: '#3d5afe' },
-  { name: 'Golden Palace', mascot: '👑', floor: '#fff1a8', wall: '#ffc21a', wall2: '#ffffff', accent: '#ff3d6e', sky: '#fff8d6', kill: '#ff1744' },
+  { name: 'Azure Archipelago', mascot: '🌊', floor: '#14c9ef', wall: '#087eee', wall2: '#0755bb', accent: '#72faff', sky: '#91dcf0', kill: '#148eaf', scenery: 'palm', outdoor: false, cell: '#256e78' },
+  { name: 'Ember Canyon', mascot: '🔥', floor: '#a8abd5', wall: '#ee302c', wall2: '#ffcb16', accent: '#ffef4d', sky: '#f3a98f', kill: '#ff392a', scenery: 'rock', outdoor: false, cell: '#702d3a' },
+  { name: 'Jade Caldera', mascot: '☢️', floor: '#08cfa2', wall: '#039473', wall2: '#075443', accent: '#65ff10', sky: '#9bd6b1', kill: '#56ff35', scenery: 'crystal', outdoor: false, cell: '#174b49' },
+  { name: 'Canopy Expedition', mascot: '🌿', floor: '#78d948', wall: '#238949', wall2: '#105b38', accent: '#eaff47', sky: '#b5e2bf', kill: '#2eb5a2', scenery: 'tree', outdoor: false, cell: '#33694e' },
+  { name: 'Coral Tsunami Coast', mascot: '🌊', floor: '#08d8f7', wall: '#0487f1', wall2: '#0661bf', accent: '#74ffff', sky: '#98ddff', kill: '#2da5e5', scenery: 'palm', outdoor: false, cell: '#277994' },
+  { name: 'Amethyst Stormlands', mascot: '🌪️', floor: '#a178ec', wall: '#5535a5', wall2: '#8a59d5', accent: '#eacdff', sky: '#b7b4dc', kill: '#ad8fff', scenery: 'rock', outdoor: true, cell: '#534678' },
+  { name: 'Emerald Underworld', mascot: '🌳', floor: '#a5db39', wall: '#148953', wall2: '#075338', accent: '#ffe037', sky: '#bee6d4', kill: '#ff986b', scenery: 'tree', outdoor: false, cell: '#3d685b' },
+  { name: 'Glacier Cathedral', mascot: '❄️', floor: '#94ecff', wall: '#247fce', wall2: '#50cfff', accent: '#ddffff', sky: '#bbddf4', kill: '#79b8ff', scenery: 'crystal', outdoor: false, cell: '#4895bc', snow: true },
+  { name: 'Neon Night Run', mascot: '💠', floor: '#7355d4', wall: '#382977', wall2: '#b434d4', accent: '#ff63e1', sky: '#586d9f', kill: '#ff4caa', scenery: 'tower', outdoor: false, cell: '#243451' },
+  { name: 'Sunken Observatory', mascot: '🌉', floor: '#23cfcb', wall: '#117cc0', wall2: '#075489', accent: '#d4ff36', sky: '#a9dce0', kill: '#329bbe', scenery: 'ruin', outdoor: false, cell: '#387d85' },
+  { name: 'Amber Fossil Vault', mascot: '🪨', floor: '#e8ac4c', wall: '#b8571c', wall2: '#ffbf17', accent: '#ffef6a', sky: '#f4d6ab', kill: '#e58336', scenery: 'rock', outdoor: false, cell: '#8c603e' },
+  { name: 'Rose Quartz Foundry', mascot: '🌸', floor: '#f390ce', wall: '#b54eaf', wall2: '#8340ba', accent: '#ffff8a', sky: '#edc8e1', kill: '#ee709d', scenery: 'tree', outdoor: false, cell: '#697ea0' },
+  { name: 'Sapphire Rapids', mascot: '💧', floor: '#18cbdc', wall: '#176ed5', wall2: '#1051a8', accent: '#7cfff0', sky: '#a1d9ee', kill: '#228cf0', scenery: 'crystal', outdoor: false, cell: '#367993' },
+  { name: 'Cloudstep Summit', mascot: '☁️', floor: '#c1bdf6', wall: '#6556c7', wall2: '#9985ee', accent: '#ffe18b', sky: '#cad2f3', kill: '#8b9fe8', scenery: 'ruin', outdoor: true, cell: '#828bb9' },
+  { name: 'Aurora Sky Docks', mascot: '👑', floor: '#ffc82f', wall: '#6841c4', wall2: '#ae64e8', accent: '#fff27c', sky: '#94bfd0', kill: '#a272ff', scenery: 'tower', outdoor: false, cell: '#394e76' },
+  {"name":"Obsidian Geysers","mascot":"✦","floor":"#ff682a","wall":"#622337","wall2":"#291b30","accent":"#ffdf78","sky":"#b5cfea","kill":"#ff682a","scenery":"rock","outdoor":true,"cell":"#291b30"},
+  {"name":"Clockwork Crossing","mascot":"✦","floor":"#ffcd57","wall":"#44667b","wall2":"#223746","accent":"#8dfff3","sky":"#b5cfea","kill":"#ffcd57","scenery":"tower","outdoor":true,"cell":"#223746"},
+  {"name":"Moonstone Viaduct","mascot":"✦","floor":"#adcaff","wall":"#574583","wall2":"#312953","accent":"#dcfffa","sky":"#b5cfea","kill":"#adcaff","scenery":"crystal","outdoor":true,"cell":"#312953"},
+  {"name":"Scarlet Floodplain","mascot":"✦","floor":"#ff9848","wall":"#932c4d","wall2":"#421f3a","accent":"#ffe36b","sky":"#b5cfea","kill":"#ff9848","scenery":"ruin","outdoor":true,"cell":"#421f3a"},
+  {"name":"Celestial Crown","mascot":"✦","floor":"#c9aaff","wall":"#473191","wall2":"#26164e","accent":"#fff19a","sky":"#b5cfea","kill":"#c9aaff","scenery":"tower","outdoor":true,"cell":"#26164e"},
 ]
 
-/**
- * Stage design.
- *  modules: course building blocks, run in order along -z.
- *  chaser: an NPC that chases the player through the whole course (walkspeed units).
- */
+/** One signature adventure per stage; safe finish landings lead into enclosed rest rooms. */
 export const STAGES = [
   null,
-  // Opening worlds are distinct, readable set pieces rather than interchangeable halls.
-  { rec: 1, wins: 1, gate: 25, tp: 0, modules: ['stairs', 'lavaBridge', 'gate'] },
-  { rec: 3, wins: 2, gate: 34, tp: 5, modules: ['grandmaRide', 'hurdles', 'gate'] },
-  { rec: 4, wins: 3, gate: 50, tp: 10, modules: ['puddles', 'greenBridge', 'bigBall', 'gate'] },
-  // Medium adventure (4-6): learn to read moving hazards and shelter spaces.
-  { rec: 5, wins: 5, gate: 80, tp: 20, modules: ['lavafalls', 'canyon', 'bigBall', 'gate'] },
-  { rec: 6, wins: 8, gate: 150, tp: 35, modules: ['collapse', 'wave', 'river', 'gate'] },
-  { rec: 7, wins: 12, gate: 250, tp: 55, modules: ['buildings', 'hurdles', 'sweeper', 'greenBridge', 'gate'] },
-  // Difficult adventure (7-9): layered timing, movement and changing lanes.
-  { rec: 8, wins: 18, gate: 400, tp: 80, modules: ['jungle', 'falling', 'pendulum', 'lavaBridge', 'gate'] },
-  { rec: 9, wins: 25, gate: 600, tp: 110, modules: ['jungle', 'greenBridge', 'pendulum', 'gate'] },
-  { rec: 10, wins: 35, gate: 900, tp: 150, modules: ['tornado', 'pillars', 'bigBall', 'lavaBalls', 'gate'] },
-  // Hard adventure (10-12): pressure routes with no dead, confusing stretches.
-  { rec: 11, wins: 50, gate: 1300, tp: 200, modules: ['lasers', 'sweeper', 'pushers', 'greenBridge', 'gate'] },
-  { rec: 12, wins: 70, gate: 1800, tp: 260, modules: ['hurdles', 'bigBall', 'pushers', 'gate'] },
-  { rec: 12, wins: 95, gate: 2500, tp: 330, modules: ['lavaBridge', 'lavaJump', 'lavafalls', 'bigBall', 'gate'] },
-  // Finale adventure (13-15): every major set piece gets a readable stage of its own.
-  { rec: 13, wins: 130, gate: 3500, tp: 420, modules: ['lasers', 'tornado', 'greenBridge', 'collapse', 'gate'] },
-  { rec: 14, wins: 175, gate: 5000, tp: 520, modules: ['tornado', 'wave', 'bigBall', 'sweeper', 'gate'] },
-  { rec: 15, wins: 250, gate: 8000, tp: 650, chaser: { speed: 44, kind: 'king', line: 'Bow before the King!' }, modules: ['lavaBridge', 'greenBridge', 'tornado', 'wave', 'bigBall', 'collapse', 'lavaBalls', 'gate'] },
+  { rec: 1, wins: 1, tp: 0, adventure: 'River Boardwalk', hint: 'Jump onto the three wide bridges, then reach the finish.', modules: ['boardwalk', 'finish'] },
+  { rec: 2, wins: 2, tp: 5, adventure: 'Molten Stepping Stones', hint: 'Jump the gaps. The red lava below is deadly.', modules: ['ember', 'finish'] },
+  { rec: 3, wins: 3, tp: 10, adventure: 'Emerald Floodgates', hint: 'Wait on gold islands while the green lava rises.', modules: ['jade', 'finish'] },
+  { rec: 4, wins: 5, tp: 20, adventure: 'Carry the Canopy', hint: 'Hold SHIFT / CARRY, then jump up the tall stairs.', modules: ['portage', 'finish'] },
+  { rec: 5, wins: 8, tp: 35, adventure: 'Tsunami Runaway', hint: 'Dodge the left-to-right wave, rest in the refuge, then outrun the right-to-left wave to the safe room.', modules: ['tsunami', 'finish'] },
+  { rec: 6, wins: 12, tp: 55, adventure: 'Tornado Chase', hint: 'A tornado is chasing you down the storm road. Keep moving and dodge its pull.', modules: ['twisters', 'finish'] },
+  { rec: 7, wins: 18, tp: 80, adventure: 'Broken Bridge Crossing', hint: 'Cross the water on the narrow bridges. They shake, collapse, and drop you into the river.', modules: ['timber', 'finish'] },
+  { rec: 8, wins: 25, tp: 110, adventure: 'Sunken Observatory', hint: 'Cross the flooded star chamber, ride the turning sky platforms, and reach the observatory.', modules: ['observatory', 'finish'] },
+  { rec: 9, wins: 35, tp: 150, adventure: 'Prism Pulse', hint: 'Wait for the laser beams to switch off.', modules: ['pulse', 'finish'] },
+  { rec: 10, wins: 50, tp: 200, adventure: 'The Vanishing Bridge', hint: 'Cross fading tiles. Rest on the permanent gold islands.', modules: ['vanish', 'finish'] },
+  { rec: 11, wins: 70, tp: 260, adventure: 'Rolling Boulder Run', hint: 'Watch the warning lanes and dodge the rolling boulders.', modules: ['boulderRun', 'finish'] },
+  { rec: 12, wins: 95, tp: 330, adventure: 'Pink River Switchback', hint: 'Go straight, turn right, then left across the disappearing bridge to reach the safe room.', modules: ['windmills', 'finish'] },
+  { rec: 13, wins: 130, tp: 420, adventure: 'Flash Flood Escape', hint: 'The road floods! Climb the mint refuges before the water rises.', modules: ['rapids', 'finish'] },
+  { rec: 14, wins: 175, tp: 520, adventure: 'Skyward Portage', hint: 'Carry your chair up the cloud stairs. Jump between terraces.', modules: ['cloudsteps', 'finish'] },
+  { rec: 15, wins: 250, tp: 650, adventure: 'Aurora Lift Expedition', hint: 'Board the rising lifts, jump onto the sky docks, then descend to the next lift.', modules: ['aurora', 'finish'] },
+  {"rec":16,"wins":350,"tp":800,"adventure":"Geyser Causeway","hint":"Time your crossing between the leaping lava jets.","modules":["geysers","finish"]},
+  {"rec":17,"wins":500,"tp":950,"adventure":"Clockwork Pendulums","hint":"Cross behind swinging hammers; gold platforms are rest bays.","modules":["hammers","finish"]},
+  {"rec":18,"wins":650,"tp":1100,"adventure":"Moonstone Switchbacks","hint":"Follow the alternating balconies and jump over the sweeping arms.","modules":["orbit","finish"]},
+  {"rec":19,"wins":800,"tp":1250,"adventure":"Scarlet Deluge","hint":"The red lava floods the road. Reach the tall gold refuges.","modules":["redFlood","finish"]},
+  {"rec":20,"wins":950,"tp":1400,"adventure":"Celestial Final Ascent","hint":"Ride the lifts and carry your chair onto the final crown terraces.","modules":["crown","finish"]},
 ]
 
-/** 1 easy (stages 1-3), 2 medium (4-6), 3 a bit hard (7-9), 4 hard (10-12), 5 very hard (13-15). */
-export function stageTier(k) {
-  return Math.min(5, Math.ceil(k / 3))
-}
-
+export function stageTier(k) { return Math.min(5, Math.ceil(k / 3)) }
 export const STAGE_COUNT = STAGES.length - 1
 
-const MODULE_LEN = {
-  plain: 36,
-  spikes: 48,
-  gate: 18,
-  puddles: 48,
-  rollers: 64,
-  lavaJump: 52,
-  swamp: 52,
-  wave: 84,
-  sweeper: 46,
-  pushers: 48,
-  falling: 52,
-  pendulum: 52,
-  lasers: 48,
-  steps: 44,
-  stairs: 44,
-  pillars: 50,
-  canyon: 60,
-  collapse: 60,
-  tide: 60,
-  river: 52,
-  lavafalls: 54,
-  lavaBalls: 56,
-  tornado: 56,
-  buildings: 52,
-  jungle: 52,
-  ice: 48,
-  lavaBridge: 66,
-  greenBridge: 64,
-  grandmaRide: 64,
-  bigBall: 76,
-  hurdles: 48,
+/** Progression gates use earned levels across rebirths and the equipped chair. */
+export function stageRequirement(k) {
+  const move = [0, 0, 0, 0, 2, 2, 2, 4, 4, 4, 6, 6, 8, 8, 10, 13, 13, 13, 16, 16, 16][k] ?? 0
+  return { level: STAGES[k]?.rec || 1, chair: CHAIRS.find((c) => c.move >= move) || CHAIRS[0] }
 }
+export function stageAccess(profile, k) {
+  if (!STAGES[k]) return null
+  const req = stageRequirement(k)
+  if ((profile.totalLevel || profile.level || 1) < req.level) return `Reach Level ${req.level}`
+  if ((chairById(profile.chair)?.move || 0) < req.chair.move) return `Equip ${req.chair.name} or better`
+  return null
+}
+
+export function newExpedition(devStage = 0) {
+  return { tool: null, dug: {}, devStage, lastDig: 0 }
+}
+/** Shared, authority-side tool/dig rules for multiplayer and offline play. */
+export function expeditionAction(expedition, pos, action, id, now = Date.now()) {
+  const stages = allStages()
+  if (action === 'pickup') {
+    const rack = stages[Number(id)]?.toolRack
+    if (!rack || Math.hypot(pos.x - rack.x, pos.z - rack.z) > 4 || Math.abs(pos.y - rack.y) > 3) return 'Move closer to the tool rack'
+    expedition.tool = 'pickaxe'
+    return null
+  }
+  if (action !== 'dig') return 'Unknown interaction'
+  const site = stages.flatMap((s) => s?.digSites || []).find((s) => s.id === id)
+  if (!site || Math.abs(pos.x - site.x) > site.w / 2 || Math.abs(pos.z - site.z) > 4 || Math.abs(pos.y - (site.y - 2)) > 3) return 'Move closer to the excavation'
+  if (expedition.tool !== 'pickaxe') return 'Pick up a pickaxe in the previous safe room'
+  if (now - expedition.lastDig < 450) return 'Wait for your next swing'
+  expedition.lastDig = now
+  expedition.dug[site.id] = Math.min(site.hits, (expedition.dug[site.id] || 0) + 1)
+  return null
+}
+export function excavationComplete(expedition, k) {
+  return allStages()[k]?.digSites.every((s) => (expedition?.dug[s.id] || 0) >= s.hits) ?? true
+}
+export function blockedExcavation(expedition, pos) {
+  const region = regionAtZ(pos.z)
+  return allStages()[region.stage]?.digSites.some((s) => pos.z < s.z - 1 && (expedition?.dug[s.id] || 0) < s.hits) || false
+}
+export function canPush(a, b, now = Date.now()) {
+  if (!a || !b || a === b || now < (a.pushReadyAt || 0) || now < (b.pushImmuneUntil || 0)) return false
+  const ra = regionAtZ(a.pos.z), rb = regionAtZ(b.pos.z)
+  if (!ra.inCourse || !rb.inCourse || ra.stage !== rb.stage) return false
+  const s = allStages()[ra.stage]
+  if (a.pos.z > s.z0 - 10 || b.pos.z > s.z0 - 10 || a.pos.z < s.zEnd + 6 || b.pos.z < s.zEnd + 6) return false
+  const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z
+  const distance = Math.hypot(dx, dz)
+  if (distance > 3.1 || Math.abs(a.pos.y - b.pos.y) > 1.8) return false
+  // Reject a push through a static wall or excavation seal.
+  const obstacles = [...s.boxes.filter((box) => box.kind === 'solid'), ...s.digSites.filter((site) => (a.expedition?.dug[site.id] || 0) < site.hits || (b.expedition?.dug[site.id] || 0) < site.hits)]
+  for (let t = 0.15; t < 1; t += 0.15) {
+    const x = a.pos.x + dx * t, z = a.pos.z + dz * t, y = a.pos.y + (b.pos.y - a.pos.y) * t
+    if (obstacles.some((box) => Math.abs(x - box.x) < box.w / 2 && Math.abs(z - box.z) < box.d / 2 && Math.abs(y - box.y) < box.h / 2)) return false
+  }
+  return true
+}
+const MODULE_LEN = { finish: 18, boardwalk: 148, ember: 156, jade: 164, portage: 160, tsunami: 188, twisters: 180, timber: 172, glacier: 180, observatory: 180, pulse: 184, vanish: 188, boulderRun: 192, windmills: 184, rapids: 192, cloudsteps: 200, aurora: 224, geysers: 216, hammers: 224, orbit: 232, redFlood: 240, crown: 248 }
 
 /** Small deterministic PRNG so client and server build the same world. */
 function rng(seed) {
@@ -380,10 +405,15 @@ export function stageEndZ(k) {
   return stageStartZ(k) - courseLength(k)
 }
 
+/** Keep every stage on one straight centre line so the course is easy to read. */
+export function stageCenterX() {
+  return 0
+}
+
 /** Spawn point at the start of stage k (just inside its intro room). */
 export function stageSpawn(k) {
   if (k <= 0) return { ...LOBBY_SPAWN }
-  return { x: -7, y: 1.5, z: stageStartZ(k) + 6, yaw: Math.PI }
+  return { x: stageCenterX(k), y: 1.5, z: stageStartZ(k) - 3, yaw: Math.PI }
 }
 
 /**
@@ -403,15 +433,9 @@ export function regionAtZ(z) {
 }
 
 /** "Stage N" title, mascot and recommended level, mounted above the doorway / on the arch. */
-function pushIntroSigns(signs, k, z, mount) {
+function pushIntroSigns(signs, k, z, centerX = 0) {
   const t = THEMES[k]
-  const s = STAGES[k]
-  const arch = mount === 'arch'
-  const x = 0
-  signs.push({ kind: 'title', x, y: arch ? 18.2 : 15.6, z, text: `Stage ${k}`, color: t.accent, stage: k })
-  signs.push({ kind: 'mascot', x: arch ? 5 : 9, y: arch ? 11.5 : 15.6, z: z + 0.3, emoji: t.mascot, arrow: !!t.arrow, stage: k })
-  if (!arch) signs.push({ kind: 'sub', x, y: 18.4, z, text: t.name, stage: k })
-  signs.push({ kind: 'rec', x: arch ? 14.5 : 0, y: arch ? 3.4 : 12, z, text: `Level ${s.rec}\nRecommended`, stage: k })
+  signs.push({ kind: 'mascot', x: centerX, y: 5.7, z: z + 0.8, emoji: t.mascot, arrow: !!t.arrow, color: t.accent, stage: k })
 }
 
 /**
@@ -428,7 +452,6 @@ export function buildStage(k) {
   const W = CORRIDOR_W
   const half = W / 2
   /** Usable half-width: every second wall panel sticks out 1.8m into the corridor. */
-  const P = half - 2.2
   const boxes = []
   const hazards = []
   const gates = []
@@ -439,6 +462,13 @@ export function buildStage(k) {
   const z0 = stageStartZ(k)
   const zEnd = stageEndZ(k)
   const len = z0 - zEnd
+  const routeX = stageCenterX(k)
+  const nextX = k < STAGE_COUNT ? stageCenterX(k + 1) : routeX
+  const exitX = nextX - routeX
+  // Safe rooms use the exact same width as the stages. Keeping both widths
+  // identical makes the whole expedition feel like one clean, straight lane.
+  const safeWidth = W
+  const safeCenter = 0
 
   const solid = (x, y, z, w, h, d, color, extra) =>
     boxes.push({ x, y, z, w, h, d, color, kind: 'solid', ...extra })
@@ -448,685 +478,405 @@ export function buildStage(k) {
     boxes.push({ x, y, z, w, h, d, color, kind: 'kill', cell: theme.cell, ...extra })
   }
   const zAt = (dist) => z0 - dist
-  const floor = (from, to, color = theme.floor) => {
+  const floor = (from, to, color = theme.floor) =>
     solid(0, -0.5, zAt((from + to) / 2), W, 1, to - from, color)
-    if (k === 1) {
-      const tile = 4
-      let i = 0
-      for (let dz = from; dz < to - 0.01; dz += tile) {
-        const length = Math.min(tile - 0.12, to - dz)
-        deco(0, 0.035, zAt(dz + length / 2), W - 1.5, 0.08, length, i % 2 ? '#eee7d5' : '#9d3035')
-        i += 1
+  const neon = (x, y, z, w, h, depth, color = theme.accent) =>
+    deco(x, y, z, w, h, depth, color, { neon: true })
+  const deck = (x, from, to, width = 12, top = 0, color = theme.floor) => {
+    solid(x, top - 0.5, zAt((from + to) / 2), width, 1, to - from, color)
+    for (const side of [-1, 1]) neon(x + side * (width / 2 - 0.2), top + 0.04, zAt((from + to) / 2), 0.15, 0.08, to - from)
+  }
+  const bridge = (x, from, to, width, color) => {
+    deck(x, from, to, width, 0, color)
+    const center = (from + to) / 2
+    const length = to - from
+    // Make the bridge readable from the approach: rails and a contrasting frame
+    // sit above the deck, while the supports stop safely above the kill volume.
+    for (const side of [-1, 1]) {
+      const railX = x + side * (width / 2 - 0.45)
+      deco(railX, 0.8, zAt(center), 0.28, 1.6, length, theme.accent, { neon: true })
+      for (const end of [from + 1, to - 1]) {
+        deco(railX, 0.2, zAt(end), 0.38, 0.4, 0.38, '#fff27c', { neon: true })
+      }
+      deco(railX, -1.5, zAt(center), 0.7, 2.2, 0.7, theme.wall2)
+    }
+    deco(x, -1.15, zAt(center), width - 1, 0.35, length - 1, theme.wall2)
+  }
+  const river = (from, to, kind = 'water') => {
+    const color = kind === 'water' ? '#168bb7' : kind === 'toxic' ? '#57ee38' : kind === 'pink' ? '#ff4f9a' : '#ff4226'
+    kill(0, -3.8, zAt((from + to) / 2), W, 0.6, to - from, color, { lava: kind !== 'water' && kind !== 'pink', cause: kind === 'water' || kind === 'pink' ? 'water' : 'lava' })
+    const surface = { x: 0, z: zAt((from + to) / 2), w: W, d: to - from, y: -3.45, vx: kind === 'toxic' ? -2 : 2, kind }
+    rivers.push(surface)
+    return surface
+  }
+  const flood = (from, to, kind, period) => {
+    const surface = river(from, to, kind)
+    const tide = { type: 'tide', x: surface.x, z: surface.z, w: surface.w, d: surface.d, lowY: surface.y, highY: 2.8, period, offset: 0, cause: kind === 'water' ? 'water' : 'lava' }
+    // Rendering and damage share this river's exact surface height and footprint.
+    surface.tide = tide
+    hazards.push(tide)
+  }
+  const instruction = (text, dist, x = 0) => signs.push({ kind: 'instruction', x, y: 5.5, z: zAt(dist), text, color: theme.accent })
+  const carryZones = []
+  const digSites = []
+  const toolRack = [10].includes(k) ? { x: exitX - 18, y: 1, z: zEnd - 18, stage: k + 1 } : null
+
+  floor(0, 8)
+  instruction(`${theme.name}\n${def.hint}`, 6)
+  // Tall studded chambers with alternating checker panels. Storm and summit keep open roofs.
+  for (const side of [-1, 1]) {
+    for (let q = 0, panel = 0; q < len; q += 12, panel++) {
+      const depth = Math.min(12, len - q)
+      solid(side * (half + 1), (WALL_H - 4) / 2, zAt(q + depth / 2), 2, WALL_H + 4, depth, panel % 2 ? theme.wall : theme.wall2, { checker: panel % 2 === 0 })
+      // Keep inset wall trim a few centimetres clear of the wall face; coincident
+      // surfaces from different materials caused visible z-fighting.
+      deco(side * (half - 0.5), WALL_H / 2, zAt(q + 1), 0.88, WALL_H, 2, theme.wall2)
+    }
+    if (!theme.outdoor) continue
+    for (let dist = 12; dist < len; dist += 16) {
+      const x = side * (half + 4 + rand() * 3)
+      const h = 5 + rand() * 9
+      const z = zAt(dist)
+      if (theme.scenery === 'tree' || theme.scenery === 'palm') {
+        deco(x, h / 2, z, 1.4, h, 1.4, '#79583f')
+        deco(x, h, z, 8, 3, 7, theme.wall2)
+        deco(x + side * 1.2, h + 2, z, 5, 2.5, 5, theme.accent)
+      } else {
+        deco(x, h / 2, z, 4 + rand() * 3, h, 5, theme.wall2)
+        deco(x, h + 0.4, z, 3.5, 0.8, 4, theme.accent, { neon: theme.scenery === 'crystal' })
+        if (theme.scenery === 'tower') neon(x - side * 2.1, h / 2, z, 0.2, h, 1)
       }
     }
   }
-  /** A solid slab from below the floor up to `top`. */
-  const slab = (x, top, from, to, w, color = theme.floor) =>
-    solid(x, (top - 1) / 2, zAt((from + to) / 2), w, top + 1, to - from + 0.01, color)
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
-  // Entry strip (8m) - always safe, the checkpoint lands here.
-  solid(0, -0.5, z0 - 4, W, 1, 8, theme.floor)
-
-  let d = 8 // distance into the course
-
-  if (k === 1) {
-    // Stage 1 is a red-and-gold academy hall: enclosed, readable and intentionally simple.
-    let brick = 0
-    for (let z = z0; z > zEnd + 0.01; z -= 8) {
-      const segLen = Math.min(8, z - zEnd)
-      const zc = z - segLen / 2
-      const color = ['#b7222c', '#ffd23d', '#8f1720'][brick % 3]
-      for (const side of [-1, 1]) {
-        solid(side * (half + 1), WALL_H / 2, zc, 2, WALL_H, segLen - 0.25, color)
-        deco(side * half, 3.5 + (brick % 2) * 4, zc, 0.18, 0.28, segLen - 1, '#ffde5c', { neon: true })
-      }
-      brick += 1
-    }
-  } else {
-    // Every later world gets an actual themed corridor shell. The original open strips
-    // looked unfinished from the player's camera and offered no visual rhythm to race through.
-    let panel = 0
-    for (let z = z0; z > zEnd + 0.01; z -= 10) {
-      const segLen = Math.min(10, z - zEnd)
-      const zc = z - segLen / 2
-      const wallColor = panel % 3 === 1 ? theme.wall2 : theme.wall
-      for (const side of [-1, 1]) {
-        solid(side * (half + 1), WALL_H / 2, zc, 2, WALL_H, segLen - 0.16, wallColor)
-        deco(side * (half - 0.08), 8.5, zc, 0.14, 10, segLen - 1, theme.accent, { neon: true })
-        if (panel % 2 === 0) {
-          deco(side * (half - 1.1), 4.5, zc, 1.2, 9, 1.2, theme.wall2)
-          deco(side * (half - 0.45), 13.5, zc, 0.16, 0.18, 4.2, theme.accent, { neon: true })
-        }
-      }
-      panel += 1
-    }
-    if (k === 3) {
-      // Reactor drums make the toxic world feel like a destination, not green paint on a hallway.
-      for (let i = 0; i < 12; i += 1) {
-        const side = i % 2 ? 1 : -1
-        boxes.push({ x: side * (P - 3 - (i % 3) * 2.5), y: 1.25, z: zAt(15 + i * 13), w: 2.4, h: 2.5, d: 2.4, color: '#d6b62b', kind: 'solid', barrel: true })
-        deco(side * (P - 3 - (i % 3) * 2.5), 2.45, zAt(15 + i * 13), 1.5, 0.12, 1.5, '#b7ff2a', { neon: true })
-      }
-    }
-  }
-
-  /** Unlit glowing box (light strips, rails, edges). */
-  const neon = (x, y, z, w, h, dd, color) => boxes.push({ x, y, z, w, h, d: dd, color, kind: 'deco', neon: true })
-  /** Difficulty tier of this stage: 1 easy ... 5 very hard. Modules scale themselves with it. */
-  const T = stageTier(k)
-  const pick = (arr) => arr[Math.min(arr.length, T) - 1]
-
+  let d = 8
   for (const mod of def.modules) {
     const L = MODULE_LEN[mod]
     const a = d
     const b = d + L
-    const zc = zAt((a + b) / 2)
-
     switch (mod) {
-      case 'plain': {
+      case 'finish':
         floor(a, b)
-        // Carpet runner with glowing edges.
-        deco(0, 0.025, zc, 9, 0.05, L - 2, theme.accent)
-        for (const sx of [-1, 1]) neon(sx * 4.8, 0.03, zc, 0.3, 0.06, L - 2, '#ffffff')
-        for (let i = 0; i < 3; i += 1) {
-          const h = i % 2 ? 8 : 4.5
-          for (const sx of [-1, 1]) {
-            solid(sx * (P - 2), h / 2, zAt(a + 7 + i * ((L - 14) / 2)), 3.4, h, 3.4, i % 2 ? theme.accent : theme.wall2)
+        break
+      case 'boardwalk': {
+        river(a, b)
+        const bridgeCount = 3
+        // A level-1 Classic Chair jumps about 4.6m: 2m gaps leave generous timing room.
+        const gap = 2
+        const segment = L / bridgeCount
+        for (let i = 0; i < bridgeCount; i++) {
+          const edge = a + i * segment
+          const end = i === bridgeCount - 1 ? b : a + (i + 1) * segment
+          bridge(0, edge + gap, end, 20, i % 2 ? theme.floor : '#64edff')
+          neon(0, 0.05, zAt(edge - 0.8), 18, 0.1, 0.5, '#fff27c')
+          instruction(`BRIDGE ${i + 1} / ${bridgeCount}\nJUMP across the small gap`, edge - 2)
+        }
+        break
+      }
+      case 'ember': {
+        river(a, b, 'lava')
+        deck(0, a, a + 10, W)
+        for (let q = a + 12, i = 0; q < b - 8; q += 11, i++) {
+          deck(Math.sin(i * 0.7) * 4, q, Math.min(q + 9, b - 6), 24, 0, i % 2 ? '#adb7e7' : '#969ecc')
+        }
+        deck(0, b - 8, b, W)
+        break
+      }
+      case 'redFlood':
+      case 'jade': {
+        flood(a, b, mod === 'redFlood' ? 'lava' : 'toxic', mod === 'redFlood' ? 15 : 22)
+        deck(0, a, b, 18)
+        for (let q = a + 10, i = 0; q < b - 10; q += 24, i++) {
+          const refugeX = i % 2 ? 12 : -12
+          for (let step = 0; step < 3; step++) deck(refugeX, q + step * 2, q + (step + 1) * 2, 8, (step + 1) * 1.2, '#efff37')
+          deck(refugeX, q + 6, Math.min(q + 14, b), 8, 3.6, '#efff37')
+          signs.push({ kind: 'instruction', x: refugeX, y: 5.8, z: zAt(q + 8), text: 'HIGH GROUND', color: theme.accent })
+          for (const side of [-1, 1]) {
+            const x = side * 17
+            const z = zAt(q + 5)
+            deco(x, -1.8, z, 2.7, 3.2, 2.7, '#ffda16', { barrel: true })
+            for (const y of [-2.8, -0.8]) deco(x, y, z, 2.82, 0.32, 2.82, '#252b32', { barrel: true })
+            deco(x, -0.16, z, 2.3, 0.1, 2.3, '#68ff00', { barrel: true, neon: true })
           }
         }
-        if (k === 1) {
-          // Baby's room: stacks of toy blocks along both walls.
-          const cols = ['#ff4d4d', '#3da5ff', '#ffd23d', '#4dd96a']
-          for (let i = 0; i < 5; i += 1) {
-            for (const sx of [-1, 1]) {
-              const bz = zAt(a + 4 + i * 7 + (sx > 0 ? 2 : 0))
-              const bx = sx * (P - 7)
-              solid(bx, 1.1, bz, 2.2, 2.2, 2.2, cols[(i + (sx > 0 ? 1 : 0)) % 4])
-              if (i % 2 === 0) solid(bx, 3.3, bz, 2.2, 2.2, 2.2, cols[(i + 2) % 4])
+        break
+      }
+      case 'portage':
+      case 'cloudsteps': {
+        river(a, b, 'water')
+        deck(0, a, a + 10, W)
+        const cycles = mod === 'portage' ? 3 : 4
+        const segment = (L - 20) / cycles
+        for (let i = 0; i < cycles; i++) {
+          const from = a + 10 + i * segment
+          const width = mod === 'portage' ? 14 : 12
+          for (let j = 0; j < 6; j++) {
+            const height = [0, 1.8, 3.2, 3.2, 1.8, 0][j]
+            deck(0, from + j * segment / 6, from + (j + 1) * segment / 6 + 0.2, width, height, j % 2 ? theme.wall2 : theme.floor)
+          }
+        }
+        deck(0, b - 10, b, W)
+        carryZones.push({ x: 0, z: zAt((a + b) / 2), w: W, d: L })
+        instruction('HOLD SHIFT / CARRY + JUMP\nLift your chair over the tall steps', a + 9)
+        break
+      }
+      case 'tsunami': {
+        floor(a, b)
+        // The whole course is flooded. The water is a visual cover over the
+        // floor; the moving wave walls are the deadly parts of this stage.
+        rivers.push({ x: 0, z: zAt((a + b) / 2), w: W, d: b - a, y: 0.08, vx: 1.8, kind: 'water' })
+        // Wave after wave sweeps across the full course. The staggered offsets
+        // keep the tsunami sequence continuous instead of leaving long pauses.
+        const refuge = a + 88
+        const refugeZ = zAt(refuge)
+        deck(0, refuge - 6, refuge + 6, 16, 1.1, '#d9ffff')
+        deco(0, 3.2, refugeZ, 15, 4.2, 0.35, '#8beeff', { neon: true })
+        for (const side of [-1, 1]) deco(side * 6.7, 2.3, refugeZ, 0.7, 2.8, 8.5, '#62dff5', { neon: true })
+        signs.push({ kind: 'instruction', x: 0, y: 5.4, z: zAt(refuge + 1), text: 'SAFE REFUGE  ·  WAIT FOR THE NEXT WAVE', color: '#d9ffff' })
+        const waveDistances = [48, 76, 104, 132, 160]
+        waveDistances.forEach((distance, i) => {
+          const leftToRight = i % 2 === 0
+          hazards.push({
+            type: 'wave', axis: 'x', x: 0, z: zAt(a + distance),
+            xFrom: leftToRight ? -26 : 26, xTo: leftToRight ? 26 : -26,
+            period: 18, warn: 3, travel: 9, offset: i * 3,
+            half: 18, triggerOnEntry: true,
+            shelters: [{ x: 0, z: refugeZ, w: 16, d: 12 }],
+          })
+        })
+        signs.push({ kind: 'instruction', x: 0, y: 5.2, z: zAt(a + 12), text: 'TSUNAMI 1  ·  LEFT → RIGHT', color: '#d9ffff' })
+        signs.push({ kind: 'instruction', x: 0, y: 5.2, z: zAt(a + 104), text: 'WAVE CHAIN  ·  KEEP MOVING TO THE SAFE ROOM', color: '#d9ffff' })
+        break
+      }
+      case 'twisters':
+        floor(a, b)
+        for (let q = a + 18, i = 0; q < b - 10; q += 28, i++) {
+          hazards.push({ type: 'tornado', x: 0, z: zAt(q + 24), zFrom: zAt(q - 8), zTo: zAt(q + 24), amp: 8, r: 3.2, h: 18, speed: 0.65, period: 15, offset: i * 3.2 })
+          for (const side of [-1, 1]) deck(side * 16, q - 5, q + 5, 6, 0.08, theme.accent)
+        }
+        break
+      case 'observatory': {
+        river(a, b, 'water')
+        deck(0, a, a + 12, 20)
+        // An original flooded observatory route: alternating round-looking
+        // sky docks, with timed rotating arms instead of falling crystals.
+        const docks = [[-8, 25], [7, 48], [-7, 71], [8, 94], [-5, 117], [5, 140], [0, 160]]
+        for (let i = 0; i < docks.length; i++) {
+          const [x, q] = docks[i]
+          const width = i === docks.length - 1 ? 18 : 12
+          deck(x, a + q, a + q + 13, width, i % 2 ? 1.2 : 0.5, i % 2 ? '#d9faff' : theme.accent)
+          deco(x, 2.1, zAt(a + q + 6.5), 1.1, 4.2 + (i % 3), 1.1, '#e1ffff', { neon: true })
+          if (i > 0 && i < docks.length - 1) hazards.push({ type: 'sweeper', x, y: 1.15, z: zAt(a + q + 6.5), len: width * 0.38, period: 4.8, offset: i * 0.72, color: '#d4ff36' })
+          if (i < docks.length - 1) {
+            const [nx, nq] = docks[i + 1]
+            const gapFrom = a + q + 13
+            const gapTo = a + nq
+            // Narrow glowing stepping bridge spans the water between docks.
+            deck((x + nx) / 2, gapFrom, gapTo, 7, 0.25 + (i % 2) * 0.45, '#a5f4f6')
+          }
+        }
+        deck(0, b - 10, b, 20)
+        instruction('SUNKEN OBSERVATORY\nFollow the star docks and dodge the turning arms', a + 4)
+        break
+      }
+      case 'timber':
+      case 'boulderRun': {
+        if (mod === 'timber') {
+          // Stage 7 is now a pure broken-bridge crossing: no pickaxe, walls or
+          // excavation gate. Permanent islands are the only rest points.
+          river(a, b, 'toxic')
+          deck(0, a, a + 10, W)
+          const islandCount = 8
+          for (let i = 0; i < islandCount; i++) {
+            const q = a + 16 + i * 19
+            const x = i % 2 ? 7 : -7
+            const width = i % 3 === 0 ? 10 : 12
+            const top = i % 2 ? 1.15 : 0.65
+            deck(x, q, q + 11, width, top, i % 2 ? theme.accent : theme.wall2)
+            if (i < islandCount - 1) {
+              const nextQ = a + 16 + (i + 1) * 19
+              const nextX = (i + 1) % 2 ? 7 : -7
+              hazards.push({
+                type: 'tile', x: (x + nextX) / 2, y: 0.75,
+                z: zAt((q + 11 + nextQ) / 2), w: 9, h: 0.6, d: 8,
+                period: 8.5, solidFrac: 0.58, offset: i * 0.9, color: '#d6a15a',
+              })
             }
           }
-        }
-        break
-      }
-      case 'spikes': {
-        floor(a, b)
-        // Cones along both walls + a field with a winding safe path through it.
-        for (let dz = a + 3; dz < b - 2; dz += 4.5) {
-          hazards.push({ type: 'spike', x: -(P - 1), z: zAt(dz), r: 1.1, h: 3.2 })
-          hazards.push({ type: 'spike', x: P - 1, z: zAt(dz + 2.2), r: 1.1, h: 3.2 })
-        }
-        let path = 0
-        for (let dz = a + 7; dz < b - 5; dz += 5.5) {
-          path = clamp(path + (rand() - 0.5) * 14, -P * 0.5, P * 0.5)
-          for (let x = -(P - 2); x <= P - 2; x += 5.5) {
-            if (Math.abs(x - path) < 4.8) continue
-            hazards.push({ type: 'spike', x: x + (rand() - 0.5), z: zAt(dz + (rand() - 0.5)), r: 1.0, h: 2.6 })
-          }
-        }
-        break
-      }
-      case 'gate': {
-        floor(a, b)
-        const gx = [-8, 8, 0][k % 3]
-        gates.push({ idx: gates.length, x: gx, z: zAt(a + L / 2), amount: def.gate, w: 11 })
-        break
-      }
-      case 'puddles': {
-        floor(a, b)
-        const n = 6
-        const sw = (2 * P) / n
-        const rows = 5 + T
-        const step = (L - 12) / rows
-        for (let r = 0; r < rows; r += 1) {
-          const clear = Math.floor(rand() * n)
-          for (let i = 0; i < n; i += 1) {
-            if (i === clear || (i === (clear + 2) % n && rand() < 0.5)) continue
-            kill(-P + (i + 0.5) * sw, 0.06, zAt(a + 6 + r * step), sw - 0.4, 0.12, 4, theme.kill, { glow: true })
-          }
-        }
-        for (let i = 0; i < 6; i += 1) {
-          const side = i % 2 === 0 ? -1 : 1
-          boxes.push({ x: side * (P - 1.6), y: 1.2, z: zAt(a + 4 + i * 7.5), w: 2.4, h: 2.4, d: 2.4, color: '#ffcc00', kind: 'solid', barrel: true })
-        }
-        break
-      }
-      case 'rollers':
-      case 'lavaBalls': {
-        // Balls rolling down the lanes; lava balls are red and green and leap across too.
-        floor(a, b)
-        const lava = mod === 'lavaBalls'
-        const n = 7
-        const lw = (2 * P) / n
-        const count = 4 + T * 2
-        for (let i = 0; i < count; i += 1) {
-          const green = lava && i % 2 === 1
-          hazards.push({
-            type: 'roller',
-            x: -P + (Math.floor(rand() * n) + 0.5) * lw + (rand() - 0.5) * 1.5,
-            zFrom: zAt(b - 1),
-            zTo: zAt(a + 1),
-            r: lava ? 2.1 : 2.3,
-            period: 5.4 - T * 0.2 + rand() * 1.6,
-            offset: rand() * 10,
-            color: lava ? (green ? '#39ff6b' : '#ff3b1a') : theme.kill,
-            cell: lava ? (green ? '#0d2a14' : '#2a0d08') : theme.cell,
-          })
-        }
-        if (lava) {
-          for (let i = 0; i < 1 + Math.floor(T / 2); i += 1) {
-            hazards.push({ type: 'lavaBall', z: zAt(a + 16 + i * 14), half: P, r: 1.1, height: 6, period: 4.2 - T * 0.15, offset: i * 1.7, dir: i % 2 ? -1 : 1, color: i % 2 ? '#ff3b1a' : '#39ff6b' })
-          }
-        }
-        break
-      }
-      case 'lavaJump':
-      case 'swamp': {
-        kill(0, -0.4, zc, W, 0.6, L, mod === 'swamp' ? '#3f8f1a' : theme.kill, { glow: true, lava: true })
-        rivers.push({ x: 0, z: zc, w: W, d: L, y: -0.65, vx: mod === 'swamp' ? -1.4 : 1.8, kind: mod === 'swamp' ? 'toxic' : 'lava' })
-        const gap = 2.2 + T * 0.35
-        let pd = a
-        let px = 0
-        let first = true
-        while (pd < b - 6) {
-          const pl = first ? 5 : 4 + rand() * 2.5
-          const pw = first ? W : (8 + rand() * 5) * (1.15 - T * 0.06)
-          px = first ? 0 : clamp(px + (rand() - 0.5) * 18, -(P - pw / 2), P - pw / 2)
-          const dy = first ? 0 : rand() < 0.45 ? 0.6 : 0
-          slab(px, dy, pd, pd + pl, pw)
-          if (!first && rand() < 0.5) deco(px, dy + 0.06, zAt(pd + pl / 2), pw - 1, 0.1, pl - 1, theme.accent)
-          pd += pl + (first ? 2.8 : gap + rand() * 0.8)
-          first = false
-        }
-        slab(0, 0, b - 5, b, W)
-        break
-      }
-      case 'canyon': {
-        kill(0, -2.5, zc, W, 0.6, L, theme.kill, { glow: true, lava: true })
-        rivers.push({ x: 0, z: zc, w: W, d: L, y: -2.2, vx: 2, kind: 'lava' })
-        floor(a, a + 6)
-        floor(b - 6, b)
-        const lx = P * 0.72
-        for (const ln of [
-          { x: -lx, w: 6.4 },
-          { x: 0, w: 5.4 },
-          { x: lx, w: 6.4 },
-        ]) {
-          solid(ln.x, -0.5, zAt((a + b) / 2), ln.w, 1, L - 11.9, theme.floor)
-        }
-        for (let dz = a + 16; dz < b - 10; dz += 16) solid(0, -0.5, zAt(dz), P * 1.8, 1, 4, theme.floor)
-        for (let dz = a + 10; dz < b - 8; dz += 7) {
-          hazards.push({ type: 'spike', x: -lx + (rand() < 0.5 ? -2.4 : 2.4), z: zAt(dz), r: 1.0, h: 2.6 })
-        }
-        break
-      }
-      case 'stairs': {
-        // Lava trench, then three big steps up to a plateau, then back down.
-        floor(a, a + 8)
-        kill(0, -0.4, zAt(a + 10), W, 0.6, 4, theme.kill, { glow: true, lava: true })
-        ;[0.6, 1.2, 1.8].forEach((t, i) => slab(0, t, a + 12 + i * 5, a + 17 + i * 5, W, i % 2 ? theme.wall2 : theme.floor))
-        slab(0, 1.8, a + 27, a + 34, W)
-        for (let dz = a + 29; dz < a + 34; dz += 4.5) {
-          hazards.push({ type: 'spike', x: -(P - 1), y: 1.8, z: zAt(dz), r: 1.0, h: 3 })
-          hazards.push({ type: 'spike', x: P - 1, y: 1.8, z: zAt(dz + 2), r: 1.0, h: 3 })
-        }
-        floor(a + 34, b)
-        break
-      }
-      case 'steps': {
-        const seg = 6
-        ;[0.9, 1.8, 2.7].forEach((t, i) => slab(0, t, a + i * seg, a + (i + 1) * seg, W, i % 2 ? theme.wall2 : theme.floor))
-        const p0 = a + 3 * seg
-        slab(0, 2.7, p0, p0 + 8, W)
-        kill(-P / 2, 2.76, zAt(p0 + 2.5), P, 0.12, 3, theme.kill, { glow: true })
-        kill(P / 2, 2.76, zAt(p0 + 5.5), P, 0.12, 3, theme.kill, { glow: true })
-        ;[1.8, 0.9].forEach((t, i) => slab(0, t, p0 + 8 + i * seg, p0 + 8 + (i + 1) * seg, W, i % 2 ? theme.floor : theme.wall2))
-        floor(p0 + 8 + 2 * seg, b)
-        break
-      }
-      case 'pillars': {
-        floor(a, b)
-        let gap = 0
-        for (let dz = a + 6; dz < b - 4; dz += 8) {
-          gap = clamp(gap + (rand() - 0.5) * 16, -(P - 5), P - 5)
-          for (let x = -(P - 2); x <= P - 2; x += 4.8) {
-            if (Math.abs(x - gap) < 4.4) continue
-            solid(x, 5, zAt(dz), 3.2, 10, 3.2, rand() < 0.5 ? theme.wall2 : theme.accent)
-          }
-        }
-        break
-      }
-      case 'lavafalls': {
-        // Lava columns pouring from the ceiling; slip through the gap in every row.
-        floor(a, b)
-        let gap = 0
-        for (let dz = a + 8; dz < b - 6; dz += 9) {
-          gap = clamp(gap + (rand() - 0.5) * 14, -(P - 5), P - 5)
-          for (let x = -(P - 2); x <= P - 2; x += 4.8) {
-            if (Math.abs(x - gap) < 4.4) continue
-            kill(x, 8, zAt(dz), 3.4, 16, 3.4, theme.kill, { glow: true })
-          }
-        }
-        break
-      }
-      case 'wave': {
-        // Tsunami: a wall of water rolls down the corridor. Stand on a yellow shelter to be safe.
-        floor(a, b)
-        const shelters = []
-        const xs = [-0.62, 0.55, -0.28, 0.7, -0.7, 0.22]
-        let i = 0
-        for (let dz = a + 10; dz < b - 6; dz += 13) {
-          const sx = xs[i % xs.length] * (P - 4)
-          i += 1
-          shelters.push({ x: sx, z: zAt(dz), w: 7, d: 7 })
-          deco(sx, 0.07, zAt(dz), 7, 0.14, 7, '#ffe83b')
-          for (const cx of [-3.2, 3.2]) solid(sx + cx, 3, zAt(dz) - 3.2, 0.6, 6, 0.6, '#ffffff')
-        }
-        hazards.push({
-          type: 'wave',
-          zFrom: zAt(b),
-          zTo: zAt(a),
-          period: pick([13, 12, 11, 10, 9]),
-          travel: pick([10, 9, 8.5, 8, 7.5]),
-          offset: k,
-          half,
-          shelters,
-          color: theme.kill,
-        })
-        break
-      }
-      case 'sweeper': {
-        floor(a, b)
-        const arm = P * 0.45
-        ;[
-          [-P * 0.5, zAt(a + 12), 1, arm],
-          [P * 0.5, zAt(a + 16), -1, arm],
-          [0, zAt(a + 34), 1, arm * 1.4],
-        ].forEach(([x, z, dir, len]) => {
-          hazards.push({ type: 'sweeper', x, z, len, y: 0.7, speed: dir * (1.2 + T * 0.14), offset: rand() * 6, color: theme.accent })
-          deco(x, 1, z, 1.8, 2, 1.8, theme.wall)
-        })
-        break
-      }
-      case 'pushers': {
-        floor(a, b)
-        for (let i = 0; i < 4; i += 1) {
-          hazards.push({
-            type: 'pusher',
-            x: 0,
-            z: zAt(a + 7 + i * 11),
-            w: 10,
-            h: 4,
-            d: 3,
-            amp: P - 5.5,
-            speed: 0.9 + T * 0.12 + rand() * 0.3,
-            offset: i * 1.7,
-            color: theme.wall2,
-          })
-        }
-        break
-      }
-      case 'falling': {
-        floor(a, b)
-        const cols = Math.floor((2 * P) / 4.5)
-        let gi = Math.floor(cols / 2)
-        for (let r = 0; r < 7; r += 1) {
-          gi = clamp(gi + Math.floor(rand() * 3) - 1, 0, cols - 2)
-          for (let i = 0; i < cols; i += 1) {
-            if (i === gi || i === gi + 1) continue
-            hazards.push({
-              type: 'falling',
-              x: -P + 2.25 + i * 4.5,
-              z: zAt(a + 5 + r * 6.5),
-              size: 4.2,
-              period: 3.8 - T * 0.15 + ((i + r) % 3) * 0.5,
-              offset: (i * 0.7 + r * 1.3) % 5,
-              color: theme.accent,
-            })
-          }
-        }
-        break
-      }
-      case 'pendulum': {
-        floor(a, b)
-        for (let i = 0; i < 6; i += 1) {
-          hazards.push({
-            type: 'pendulum',
-            z: zAt(a + 5 + i * 8),
-            amp: P - 3.5,
-            speed: 0.9 + T * 0.12 + rand() * 0.4,
-            offset: i * 1.1,
-            w: 4.2,
-            h: 3.4,
-            d: 2.4,
-            color: '#8a5a2b',
-          })
-        }
-        break
-      }
-      case 'lasers': {
-        floor(a, b)
-        for (let i = 0; i < 7; i += 1) {
-          hazards.push({
-            type: 'laser',
-            z: zAt(a + 4 + i * 6),
-            y: i % 2 === 0 ? 0.5 : 0.9,
-            half,
-            period: 3.2 - T * 0.12 + (i % 3) * 0.4,
-            onFrac: 0.5,
-            offset: i * 0.7,
-            color: theme.kill,
-          })
-        }
-        break
-      }
-      case 'collapse': {
-        kill(0, -0.4, zc, W, 0.6, L, theme.kill, { glow: true, lava: true })
-        rivers.push({ x: 0, z: zc, w: W, d: L, y: -0.65, vx: 1.6, kind: 'lava' })
-        floor(a, a + 6)
-        floor(b - 6, b)
-        const rows = Math.floor((L - 12) / 6)
-        const lanes = 4
-        const lw = (2 * P) / lanes
-        for (let r = 0; r < rows; r += 1) {
-          for (let lane = 0; lane < lanes; lane += 1) {
-            hazards.push({
-              type: 'tile',
-              x: -P + (lane + 0.5) * lw,
-              y: -0.5,
-              z: zAt(a + 6 + r * 6 + 2.5),
-              w: lw - 0.8,
-              h: 1,
-              d: 5,
-              period: 8.5 - T * 0.4,
-              solidFrac: 0.7 - T * 0.02,
-              offset: (r * 0.12 + lane * 0.33) * 7,
-              color: theme.wall2,
-            })
-          }
-        }
-        break
-      }
-      case 'tide': {
-        kill(0, -0.4, zc, W, 0.6, L, theme.kill, { glow: true, lava: true })
-        rivers.push({ x: 0, z: zc, w: W, d: L, y: -0.65, vx: 1.6, kind: 'lava' })
-        solid(0, -0.5, zc, 18, 1, L, theme.floor)
-        floor(a, a + 6)
-        floor(b - 6, b)
-        let zi = 0
-        for (let dz = a + 6; dz + 12 <= b - 6; dz += 18) {
-          hazards.push({ type: 'tide', x: 0, z: zAt(dz + 6), w: 18, d: 12, period: 9, offset: zi * 2.6, color: theme.kill })
-          deco(0, 0.05, zAt(dz + 15), 18, 0.1, 5, '#ffe83b')
-          zi += 1
-        }
-        break
-      }
-      case 'river': {
-        floor(a, b)
-        for (let i = 0; i < 3; i += 1) {
-          const dz = a + 6 + i * 16
-          const vx = (i % 2 ? -1 : 1) * (3.5 + T * 0.4)
-          currents.push({ x: 0, z: zAt(dz + 5), w: W, d: 10, vx, vz: 0 })
-          const side = vx > 0 ? 1 : -1
-          for (let sz = 0; sz < 10; sz += 3.3) {
-            hazards.push({ type: 'spike', x: side * (P - 1), z: zAt(dz + 1.5 + sz), r: 1.1, h: 3.2 })
-          }
-        }
-        break
-      }
-      case 'tornado': {
-        // Twisters drift across the floor; time your run between them.
-        floor(a, b)
-        for (let i = 0; i < 2 + T; i += 1) {
-          hazards.push({ type: 'tornado', x: 0, z: zAt(a + 8 + i * ((L - 14) / (1 + T))), amp: P - 3, r: 2.4, h: 14, speed: 0.5 + T * 0.08 + rand() * 0.3, offset: i * 1.9 })
-        }
-        for (let i = 0; i < 6; i += 1) {
-          const side = i % 2 ? 1 : -1
-          solid(side * (P - 1.5), 0.8, zAt(a + 4 + i * 9), 2.6, 1.6, 2.2, theme.wall2) // tumbled rocks
-        }
-        break
-      }
-      case 'buildings': {
-        // A city street: weave between buildings with lit windows.
-        solid(0, -0.5, zc, W, 1, L, '#3a3f55')
-        for (let dz = a + 3; dz < b - 2; dz += 6) deco(0, 0.03, zAt(dz), 0.5, 0.06, 2.6, '#ffffff')
-        let gap = 0
-        for (let dz = a + 8; dz < b - 6; dz += 11) {
-          gap = clamp(gap + (rand() - 0.5) * 16, -(P - 6), P - 6)
-          for (const [x0, x1] of [
-            [-half, gap - 4.4],
-            [gap + 4.4, half],
-          ]) {
-            if (x1 - x0 < 2) continue
-            const bh = 6 + rand() * 9
-            const bz = zAt(dz)
-            const col = rand() < 0.5 ? theme.wall : theme.wall2
-            solid((x0 + x1) / 2, bh / 2, bz, x1 - x0, bh, 5, col)
-            deco((x0 + x1) / 2, bh + 0.2, bz, x1 - x0 + 0.4, 0.4, 5.4, theme.accent)
-            for (let wy = 1.8; wy < bh - 1; wy += 2.4) {
-              for (let wx = x0 + 1.2; wx < x1 - 0.8; wx += 2.2) {
-                if (rand() < 0.25) continue
-                neon(wx, wy, bz + 2.55, 1, 1.2, 0.1, rand() < 0.7 ? '#ffe98a' : '#8fd8ff')
-              }
-            }
-          }
-        }
-        break
-      }
-      case 'jungle': {
-        // Dense trees, thorny bushes and swinging logs.
-        floor(a, b, '#4fae3a')
-        let path = 0
-        for (let dz = a + 6; dz < b - 4; dz += 7) {
-          path = clamp(path + (rand() - 0.5) * 14, -P * 0.6, P * 0.6)
-          for (let x = -(P - 2); x <= P - 2; x += 6) {
-            if (Math.abs(x - path) < 5) continue
-            const tx = x + (rand() - 0.5) * 1.5
-            const tz = zAt(dz + (rand() - 0.5) * 2)
-            solid(tx, 3, tz, 1.4, 6, 1.4, '#7a4a26')
-            deco(tx, 7, tz, 5, 2.4, 5, rand() < 0.5 ? '#2fae4a' : '#3cc95a')
-            deco(tx, 8.8, tz, 3, 1.4, 3, '#4fe06a')
-          }
-        }
-        for (let i = 0; i < 3; i += 1) {
-          hazards.push({ type: 'pendulum', z: zAt(a + 10 + i * 15), amp: P - 3.5, speed: 0.9 + T * 0.12 + rand() * 0.3, offset: i * 1.4, w: 4.6, h: 1.6, d: 1.6, color: '#8a5a2b' })
-        }
-        break
-      }
-      case 'ice': {
-        // Snowfield with ice blocks, snow drifts and icicle blocks dropping from above.
-        floor(a, b, '#eaf8ff')
-        let gap = 0
-        for (let dz = a + 6; dz < b - 4; dz += 9) {
-          gap = clamp(gap + (rand() - 0.5) * 14, -(P - 5), P - 5)
-          for (let x = -(P - 2); x <= P - 2; x += 5) {
-            if (Math.abs(x - gap) < 4.6) continue
-            const sz = 2.2 + rand() * 1.1
-            const h = 0.55 + rand() * 0.45
-            solid(x, h / 2, zAt(dz), sz, h, sz, rand() < 0.5 ? '#9fe0ff' : '#c7efff')
-          }
-          deco(gap, 0.12, zAt(dz + 4.5), 6, 0.24, 2.5, '#ffffff')
-        }
-        for (const sx of [-6, 6]) hazards.push({ type: 'falling', x: sx, z: zAt(a + L / 2), size: 3.2, period: 3.6, offset: sx > 0 ? 1.7 : 0, color: '#bff0ff' })
-        break
-      }
-
-      // ---- Showpiece modules --------------------------------------------------------
-      case 'lavaBridge': {
-        // A wide plank bridge over a flowing river of lava. Narrower and gappier as stages get harder.
-        const rA = a + 5
-        const rB = b - 5
-        const rl = rB - rA
-        const rz = zAt((rA + rB) / 2)
-        floor(a, rA)
-        floor(rB, b)
-        kill(0, k === 1 ? -2 : -1.4, rz, W, 0.6, rl, theme.kill, { glow: true, lava: true })
-        rivers.push({ x: 0, z: rz, w: W, d: rl, y: k === 1 ? -1.25 : -0.65, vx: 2.4, kind: 'lava', style: k === 1 ? 'redStone' : undefined })
-        const bw = k === 1 ? 22 : pick([16, 12, 9, 7.5, 6.5])
-        const gs = pick([0, 0, 2.4, 3, 3.6])
-        if (k === 1) {
-          // Exactly three small bridge pieces over the lava river.
-          const plank = 14
-          const spacing = (rl - plank * 3) / 4
-          for (let i = 0; i < 3; i += 1) {
-            const from = rA + spacing * (i + 1) + plank * i
-            solid(0, -0.15, zAt(from + plank / 2), bw, 0.3, plank, i % 2 ? '#eee7d5' : '#8b929b')
-            neon(0, 0.04, zAt(from + plank / 2), bw - 1, 0.08, plank - 1, '#ffffff')
-          }
+          deck(0, b - 10, b, W)
+          instruction('BROKEN BRIDGE CROSSING\nThe bridge shakes and collapses · KEEP MOVING', a + 3)
         } else {
-          let pz = rA
-          let n = 0
-          while (pz < rB - 0.01) {
-            if (gs && n > 0 && n % 7 === 3 && pz + gs < rB - 6) {
-              pz += gs // a missing plank section: jump it
-              n += 1
-              continue
-            }
-            const pl = Math.min(2, rB - pz)
-            solid(0, -0.15, zAt(pz + pl / 2), bw, 0.3, pl, n % 2 ? '#c98a4b' : '#b87a3c')
-            pz += pl
-            n += 1
+          deck(0, a, a + 10, W)
+          deck(0, b - 10, b, W)
+          deck(0, a + 10, b - 10, 28, 0, theme.wall2)
+          const lanes = [-8, 0, 8]
+          for (let i = 0; i < 6; i++) {
+            const q = a + 22 + i * 24
+            const lane = lanes[i % lanes.length]
+            hazards.push({ type: 'boulder', x: lane, zFrom: zAt(q + 12), zTo: zAt(q - 12), r: 2.8, kr: 3.5, period: 4.8, offset: i * 0.65, color: theme.accent })
+            for (const side of [-1, 1]) deco(side * 17, 2.5, zAt(q), 1.5, 5, 5, theme.wall, { neon: true })
+            neon(lane, 0.06, zAt(q), 5.5, 0.1, 0.3, '#ffe36b')
           }
-        }
-        for (const sx of [-1, 1]) {
-          const rx = sx * (bw / 2 - 0.15)
-          if (T <= 2) solid(rx, 0.45, rz, 0.3, 0.9, rl, theme.wall2) // low rail: you can't slip off
-          else deco(rx, 0.45, rz, 0.3, 0.9, rl, theme.wall2)
-          neon(rx, 0.98, rz, 0.16, 0.1, rl, '#ffb347')
-          for (let dz = rA + 3; dz < rB; dz += 6) solid(rx, 0.8, zAt(dz), 0.5, 1.6, 0.5, theme.accent)
-        }
-        for (const zz of [rA, rB]) neon(0, 0.04, zAt(zz) + (zz === rA ? 0.3 : -0.3), W, 0.08, 0.5, '#ffb347')
-        for (let i = 0; i < T - 1; i += 1) {
-          hazards.push({ type: 'lavaBall', z: zAt(rA + 10 + i * ((rl - 16) / Math.max(1, T - 2))), half: P, r: 1.1, height: 7, period: 4 - T * 0.2, offset: i * 1.3, dir: i % 2 ? -1 : 1, color: i % 2 ? '#39ff6b' : '#ff3b1a' })
+          instruction('ROLLING BOULDER RUN\nSwitch lanes and dodge the incoming balls', a + 4)
         }
         break
       }
-      case 'greenBridge': {
-        // A bridge over flowing green lava. Every so often the lava surges up over a section of it,
-        // so cross while it's clear and wait on the stone islands between sections.
-        const rA = a + 5
-        const rB = b - 5
-        const rl = rB - rA
-        const rz = zAt((rA + rB) / 2)
-        floor(a, rA)
-        floor(rB, b)
-        kill(0, -1.4, rz, W, 0.6, rl, '#3fe03a', { glow: true, lava: true, cell: '#0d2a14' })
-        rivers.push({ x: 0, z: rz, w: W, d: rl, y: -0.65, vx: -2.6, kind: 'toxic' })
-        const bw = pick([14, 12, 10, 9, 8])
-        const deckL = 14
-        const isle = 6
-        let q = 0
-        let i = 0
-        while (q + deckL <= rl) {
-          for (let s = 0; s < deckL; s += 2) solid(0, -0.15, zAt(rA + q + s + 1), bw, 0.3, 2, (s / 2) % 2 ? '#7d8da3' : '#6b7a8f')
-          hazards.push({ type: 'tide', x: 0, z: zAt(rA + q + deckL / 2), w: bw, d: deckL, period: pick([10, 9.5, 9, 8.5, 8]), offset: i * 2.6, color: '#3dff3a' })
-          q += deckL
-          if (q + isle + deckL <= rl) {
-            solid(0, -0.5, zAt(rA + q + isle / 2), 18, 1, isle, theme.floor)
-            deco(0, 0.05, zAt(rA + q + isle / 2), 17, 0.1, isle - 1, '#ffe83b')
-            q += isle
+      case 'glacier': {
+        river(a, b, 'water')
+        deck(0, a, a + 10, 18)
+        // A bright ice-cathedral route: broad landing pads alternate through the
+        // water, then converge into a crowned central bridge before the exit.
+        const pads = [
+          [-9, 12, 11, 0.8],
+          [7, 31, 10, 1.4],
+          [-4, 50, 12, 0.5],
+          [9, 69, 10, 1.7],
+          [-6, 88, 12, 0.8],
+          [4, 107, 11, 1.3],
+          [0, 126, 18, 2.1],
+          [0, 146, 18, 1.2],
+        ]
+        for (let i = 0; i < pads.length; i++) {
+          const [x, q, width, height] = pads[i]
+          const depth = i >= 6 ? 15 : 12
+          deck(x, q, q + depth, width, height, i % 2 ? '#dffbff' : theme.accent)
+          hazards.push({ type: 'falling', x, z: zAt(q + depth / 2), size: width - 1, period: 4.2, offset: i * 0.8, color: '#a0e9ff' })
+          for (const side of [-1, 1]) {
+            const crystalX = x + side * (width / 2 + 1.8)
+            deco(crystalX, 2.2, zAt(q + depth / 2), 0.8, 4.4 + (i % 3) * 1.4, 0.8, '#c9f8ff', { neon: true })
           }
-          i += 1
         }
-        for (const zz of [rA, rB]) neon(0, 0.04, zAt(zz) + (zz === rA ? 0.3 : -0.3), W, 0.08, 0.5, '#7dff3a')
+        // Floating crown ribs make the centre section read like a cathedral nave.
+        for (const side of [-1, 1]) {
+          for (let i = 0; i < 3; i++) {
+            const q = a + 126 + i * 7
+            deco(side * (7.5 - i * 0.8), 5.5, zAt(q), 0.55, 11, 0.55, theme.wall2, { neon: true })
+            deco(side * (5.5 - i * 0.5), 10.3, zAt(q), 0.55, 0.55, 4.5, theme.accent, { neon: true })
+          }
+        }
+        deck(0, b - 10, b, 18)
+        instruction('GLACIER CATHEDRAL\nFollow the ice path through the falling crystals', a + 3)
         break
       }
-      case 'grandmaRide': {
-        // Grandmas in wheelchairs come rolling down the wide hall, weaving side to side. Dodge them.
+      case 'pulse':
         floor(a, b)
-        deco(0, 0.025, zc, P * 1.6, 0.05, L - 2, theme.accent)
-        for (let i = 0; i < 6; i += 1) {
-          for (const sx of [-1, 1]) solid(sx * (P - 1.5), 1.2, zAt(a + 5 + i * 9.5), 1.6, 2.4, 1.6, theme.wall2)
-        }
-        const count = pick([1, 2, 2, 3, 4])
-        const period = pick([8.5, 7.5, 6.5, 5.5, 4.5])
-        for (let i = 0; i < count; i += 1) {
-          hazards.push({
-            type: 'granny',
-            x: 0,
-            zFrom: zAt(b - 2),
-            zTo: zAt(a + 1),
-            amp: P - 5.5,
-            weaves: 1.5,
-            phase: i * 2.1,
-            period,
-            offset: (i * period) / count,
-            r: 3.4,
-          })
+        for (let q = a + 16, i = 0; q < b - 8; q += 18, i++) {
+          hazards.push({ type: 'laser', x: 0, z: zAt(q), half: half - 1, y: 0.9, period: 4.8, onFrac: 0.52, offset: i * 0.8, color: i % 2 ? '#63f9ff' : '#ff76cf' })
+          neon(0, 0.04, zAt(q + 3), W - 4, 0.08, 0.3)
         }
         break
-      }
-      case 'bigBall': {
-        // A giant lava ball rolls down a narrow lane. Duck into a side alcove until it has passed.
-        floor(a, b)
-        const LH = 5.4 // half-width of the lane (the ball is 10 wide)
-        const depth = 5.5 // alcove depth
-        const pockets = []
-        for (let pdz = a + 12; pdz < b - 9; pdz += 14) pockets.push(pdz)
-        const seg = (from, to, fn) => {
-          if (to - from > 0.01) fn(from, to)
+      case 'vanish': {
+        river(a, b)
+        deck(0, a, a + 8, W)
+        for (let q = a + 8, i = 0; q < b - 8; q += 8, i++) {
+          const depth = Math.min(8, b - 8 - q)
+          if (i % 3 === 0) deck(0, q, q + depth, 16, 0, '#e5cc83')
+          else hazards.push({ type: 'tile', x: 0, y: -0.3, z: zAt(q + depth / 2), w: 12, h: 0.6, d: depth, period: 9, solidFrac: 0.76, offset: Math.floor(i / 3) * 1.3, color: theme.wall2 })
         }
-        for (const sx of [-1, 1]) {
-          const bx = sx * (LH + depth + (half + 1 - (LH + depth)) / 2)
-          solid(bx, 4.5, zc, half + 1 - (LH + depth), 9, L, theme.wall2) // solid mass behind the alcoves
-          let from = a
-          const cut = []
-          for (const pz of pockets) cut.push([pz - 3.5, pz + 3.5])
-          cut.push([b, b])
-          for (const [s0, s1] of cut) {
-            seg(from, s0, (f, t) => {
-              solid(sx * (LH + depth / 2), 3, zAt((f + t) / 2), depth, 6, t - f, theme.wall)
-              neon(sx * (LH - 0.1), 6.1, zAt((f + t) / 2), 0.2, 0.2, t - f, '#ffb347')
-            })
-            from = s1
-          }
-          for (const pz of pockets) {
-            deco(sx * (LH + depth / 2), 0.04, zAt(pz), depth - 0.6, 0.08, 6.4, '#ffe83b')
-            neon(sx * (LH + depth - 0.2), 0.5, zAt(pz), 0.2, 1, 6.4, '#ffe83b')
-          }
-        }
-        const cnt = T >= 4 ? 2 : 1
-        const period = pick([11, 10, 9, 8, 7.5])
-        for (let i = 0; i < cnt; i += 1) {
-          hazards.push({
-            type: 'boulder',
-            x: 0,
-            zFrom: zAt(b - 1),
-            zTo: zAt(a + 1),
-            r: 5,
-            kr: 4.3,
-            period,
-            offset: (i * period) / cnt,
-            color: i % 2 ? '#39ff6b' : '#ff3b1a',
-            cell: i % 2 ? '#0d2a14' : '#2a0d08',
-          })
-        }
+        deck(0, b - 8, b, W)
         break
       }
-      case 'hurdles': {
-        // Low beams across (and along) the hall: jump over them. Early stages leave a gap to walk round.
-        floor(a, b)
-        const rows = Math.floor((L - 10) / 7)
-        for (let r = 0; r < rows; r += 1) {
-          const bz = zAt(a + 7 + r * 7)
-          const col = r % 2 ? theme.accent : theme.wall2
-          const hole = T <= 2 ? clamp((rand() - 0.5) * 2 * (P - 4), -(P - 4), P - 4) : null
-          const parts = hole === null ? [[-P, P]] : [[-P, hole - 2.4], [hole + 2.4, P]]
-          for (const [x0, x1] of parts) {
-            if (x1 - x0 < 1) continue
-            solid((x0 + x1) / 2, 0.5, bz, x1 - x0, 1, 1.3, col)
-            neon((x0 + x1) / 2, 1.03, bz, x1 - x0, 0.06, 0.5, '#ffffff')
-          }
-          if (T >= 2 && r % 2 === 0) {
-            const lx = clamp((rand() - 0.5) * 2 * (P - 4), -(P - 4), P - 4)
-            solid(lx, 0.5, zAt(a + 7 + r * 7 + 3.5), 1.3, 1, 5, theme.wall)
-            neon(lx, 1.03, zAt(a + 7 + r * 7 + 3.5), 0.5, 0.06, 5, '#ffffff')
-          }
+      case 'windmills': {
+        river(a, b, 'pink')
+        const pathDeckZ = (x, from, to, width = 10, color = theme.floor) => {
+          deck(x, from, to, width, 0, color)
+          for (const side of [-1, 1]) neon(x + side * (width / 2 - 0.25), 0.06, zAt((from + to) / 2), 0.16, 0.12, to - from, '#fff0a3')
         }
+        const pathDeckX = (from, to, dist, depth = 10, color = theme.accent) => {
+          solid((from + to) / 2, -0.5, zAt(dist), to - from, 1, depth, color)
+          neon((from + to) / 2, 0.06, zAt(dist - depth / 2 + 0.2), to - from, 0.12, 0.16, '#fff0a3')
+          neon((from + to) / 2, 0.06, zAt(dist + depth / 2 - 0.2), to - from, 0.12, 0.16, '#fff0a3')
+        }
+        // Straight approach, right turn, straight return, then left turn.
+        pathDeckZ(0, a, a + 22, W, theme.floor)
+        pathDeckZ(0, a + 22, a + 46.5, 11, theme.accent)
+        pathDeckX(0, 12, a + 52, 11, theme.wall2)
+        // Stop each straight at the edge of its crosswalk. Keeping the box
+        // surfaces edge-to-edge removes the coplanar overlap that flickered.
+        pathDeckZ(12, a + 57.5, a + 78.5, 11, theme.floor)
+        pathDeckX(-10, 12, a + 84, 11, theme.accent)
+        // Five offset bridge spans. Their first and last edges meet the
+        // crosswalks cleanly so no differently-coloured floor sits on top.
+        for (let i = 0; i < 5; i++) {
+          const q = a + 91.5 + i * 10
+          const x = i % 2 ? -4 : -10
+          deck(x, q, q + 7, 10, 0.4 + (i % 2) * 0.35, i % 2 ? theme.accent : theme.wall2)
+          neon(x, 0.52 + (i % 2) * 0.35, zAt(q + 3.5), 8.5, 0.12, 0.14, '#fff0a3')
+        }
+        pathDeckZ(-10, a + 138.5, b - 10, 11, theme.floor)
+        pathDeckZ(-10, b - 10, b, W, theme.floor)
+        instruction('PINK RIVER SWITCHBACK\nStraight → RIGHT → straight → LEFT → jump the fading bridge', a + 4)
         break
       }
+      case 'rapids':
+        flood(a, b, 'water', 17)
+        deck(0, a, b, 18)
+        for (let q = a + 8, i = 0; q < b - 8; q += 22, i++) {
+          const x = i % 2 ? 12 : -12
+          for (let step = 0; step < 3; step++) deck(x, q + step * 2, q + (step + 1) * 2, 8, (step + 1) * 1.2, theme.accent)
+          deck(x, q + 6, Math.min(q + 13, b), 8, 3.6, theme.accent)
+        }
+        break
+      case 'aurora':
+      case 'crown': {
+        river(a, b, 'water')
+        deck(0, a, a + 8, W)
+        const segment = (L - 16) / 4
+        for (let i = 0; i < 4; i++) {
+          const q = a + 8 + i * segment
+          const height = mod === 'crown' ? 6 : 4
+          hazards.push({ type: 'lift', x: 0, y: -0.4, z: zAt(q + 6), w: 12, d: 12, h: 0.8, rise: height, period: 9, offset: i * 1.8, color: theme.accent })
+          deck(0, q + 12, q + segment - 12, mod === 'crown' ? 8 : 12, height, theme.wall2)
+          deck(0, q + segment - 12, q + segment, 14, 0, theme.accent)
+          for (const side of [-1, 1]) deco(side * 8, height / 2, zAt(q + 6), 0.6, height + 2, 0.6, theme.accent, { neon: true })
+          if (mod === 'crown') {
+            deck(0, q + 20, q + 26, 8, height + 2.4, theme.floor)
+            carryZones.push({ x: 0, z: zAt(q + 23), w: 10, d: 12 })
+          }
+        }
+        deck(0, b - 8, b, W)
+        break
+      }
+      case 'geysers':
+        river(a, b, 'lava')
+        deck(0, a, a + 10, 16)
+        for (let i = 0; i < 9; i++) {
+          const q = a + 14 + i * 20
+          const x = i % 2 ? 6 : -6
+          deck(x, q, q + 13, 11, 0, i % 2 ? theme.wall2 : theme.accent)
+          hazards.push({ type: 'lavaBall', x, z: zAt(q + 6.5), r: 1.8, half: 5, dir: i % 2 ? -1 : 1, height: 7, period: 5.8, offset: i * 0.9, color: '#ff5a20' })
+        }
+        // Replace the long center bridge with short stepping stones so the
+        // final stretch is crossed by jumping between platforms.
+        for (let i = 0; i < 4; i++) {
+          const q = b - 26 + i * 5
+          const x = -3 + i * 3
+          deck(x, q, q + 3, 8, 0.45, theme.accent)
+        }
+        deck(0, b - 10, b, 16)
+        break
+      case 'hammers':
+        river(a, b, 'water')
+        deck(0, a, b, 16)
+        for (let q = a + 20, i = 0; q < b - 10; q += 26, i++) {
+          hazards.push({ type: 'pendulum', x: 0, z: zAt(q), amp: 16, speed: 1.3, offset: i * 1.7, w: 6, h: 6, d: 4, color: theme.accent })
+          deck(0, q - 9, q - 4, 24, 0, theme.accent)
+        }
+        break
+      case 'orbit':
+        river(a, b, 'water')
+        deck(0, a, a + 8, W)
+        for (let q = a + 8, i = 0; q < b - 8; q += 24, i++) {
+          const end = Math.min(q + 24, b - 8)
+          const x = i % 2 ? 8 : -8
+          deck(0, q, q + 5, 30, 0, theme.accent)
+          deck(x, q + 5, end, 12, 0, theme.floor)
+          hazards.push({ type: 'sweeper', x, z: zAt(q + 14), len: 7, y: 0.65, speed: i % 2 ? -1.4 : 1.4, offset: i, color: theme.accent })
+        }
+        deck(0, b - 8, b, W)
+        break
       default:
-        floor(a, b)
+        throw new Error(`Unknown adventure: ${mod}`)
     }
     d = b
   }
@@ -1138,75 +888,113 @@ export function buildStage(k) {
     const ic = (i0 + z0) / 2
     const il = i0 - z0
     ceil.from = i0
-    solid(0, -0.5, ic, W, 1, il, '#2b6cff')
+    solid(0, -0.5, ic, W, 1, il, theme.floor)
     solid(-half - 1, WALL_H / 2, ic, 2, WALL_H, il, theme.wall)
     solid(half + 1, WALL_H / 2, ic, 2, WALL_H, il, theme.wall)
     // Golden arch over the course entrance.
-    solid(-half + 1.5, WALL_H / 2, z0 - 1, 3, WALL_H, 2, '#ffc21a')
-    solid(half - 1.5, WALL_H / 2, z0 - 1, 3, WALL_H, 2, '#ffc21a')
-    solid(0, WALL_H - 2, z0 - 1, W, 4, 2, '#ffc21a')
-    pushIntroSigns(signs, 1, z0 + 0.2, 'arch')
+    solid(-half + 1.5, WALL_H / 2, z0 - 1, 3, WALL_H, 2, theme.wall2)
+    solid(half - 1.5, WALL_H / 2, z0 - 1, 3, WALL_H, 2, theme.wall2)
+    solid(0, WALL_H - 2, z0 - 1, W, 4, 2, theme.wall2)
+    pushIntroSigns(signs, 1, z0 + 0.2)
   }
 
   // --- Safe room after the course ----------------------------------------------
   //   entry: narrower doorway framed in blue, "Safe Zone" above it
   //   left : yellow RETURN pad (+wins, back to lobby)
-  //   right: red BONUS pad (2x wins) behind a lava strip + divider -> needs a jump
+  //   right: red BONUS pad (2x wins), unlocked by the existing wins requirement
   //   front: door (left half) to the next stage, with the next stage's title above it
   const s0 = zEnd
   const s1 = zEnd - SAFE_ROOM_LEN
   const sc = (s0 + s1) / 2
   ceil.to = s1
-  solid(0, -0.5, sc, W, 1, SAFE_ROOM_LEN, '#2b6cff')
-  solid(-half + 2, 0.65, sc, 4, 1.3, SAFE_ROOM_LEN, '#1f5fe0')
-  solid(half - 2, 0.65, sc, 4, 1.3, SAFE_ROOM_LEN, '#1f5fe0')
-
-  if (k === 2) {
-    // Stage 2's safe zone is a small brick rest stop, not another empty platform.
-    const brickColors = ['#d63b3b', '#eee7d5', '#8b5a3c']
-    for (let z = s0 - 5, i = 0; z > s1 + 5; z -= 5, i += 1) {
-      const color = brickColors[i % brickColors.length]
-      for (const side of [-1, 1]) {
-        solid(side * (half - 1.2), 2.5, z, 2.2, 5, 4.1, color)
-        deco(side * (half - 0.05), 4.2, z, 0.16, 0.22, 3.5, '#fff4c2', { neon: true })
-      }
+  solid(safeCenter, -0.5, sc, safeWidth, 1, SAFE_ROOM_LEN, theme.floor)
+  // Full-height side walls keep the safe room enclosed; the stage gates are its only exits.
+  solid(safeCenter - safeWidth / 2 + 2, WALL_H / 2, sc, 4, WALL_H, SAFE_ROOM_LEN, theme.wall)
+  solid(safeCenter + safeWidth / 2 - 2, WALL_H / 2, sc, 4, WALL_H, SAFE_ROOM_LEN, theme.wall)
+  // Short theme-colored markers make the safe-room walls easy to read without
+  // carrying the course's dense checker panels through the reward area.
+  for (const side of [-1, 1]) {
+    const wallX = safeCenter + side * (safeWidth / 2 - 2)
+    for (let z = s0 - 5; z > s1 + 3; z -= 8) {
+      deco(wallX - side * 2.06, 3.2, z, 0.16, 1.25, 2.4, theme.accent, { neon: true })
     }
   }
-
-  for (const sx of [-1, 1]) solid(sx * 7, 3, s0 - 1, 2, 6, 2, '#1d4fb8')
-  solid(0, 6.5, s0 - 1, 16, 1.5, 2, '#1d4fb8')
-  for (const sx of [-1, 1]) deco(sx * 7, 4.5, s0 + 0.1, 0.8, 9, 0.5, '#2bc4ff')
-  deco(0, 9, s0 + 0.1, 14.8, 0.8, 0.5, '#2bc4ff')
+  // Chunky corner piers on the safe-room side cover the wall join and read as
+  // architectural supports growing out from the room instead of a color seam.
+  for (const side of [-1, 1]) {
+    const wallX = safeCenter + side * (safeWidth / 2 - 2)
+    const pierX = wallX - side * 1.25
+    const pierZ = s0 - 2.4
+    solid(pierX, WALL_H / 2, pierZ, 5.2, WALL_H, 5.6, theme.wall2)
+    deco(pierX - side * 1.4, WALL_H / 2, pierZ, 0.28, WALL_H - 1, 4.4, theme.accent, { neon: true })
+    deco(pierX - side * 2.62, WALL_H / 2, pierZ, 0.28, WALL_H - 1, 4.4, theme.wall)
+    deco(pierX, WALL_H - 0.7, pierZ, 5.4, 0.45, 5.8, theme.accent, { neon: true })
+  }
+  if (exitX !== 0) deco(safeCenter, 0.035, sc, Math.abs(exitX) + 4, 0.07, 2.4, theme.accent)
 
   // Wins pads either side of the exit door (press E on one), open floor between them. The right
-  // one pays double but stays locked until you hold BONUS_PAD_MIN_WINS wins.
-  const returnPad = { x: -13, z: s1 + 6, w: 9, d: 8, wins: def.wins, bonus: false, minWins: 0 }
-  const bonusPad = { x: 13, z: s1 + 6, w: 9, d: 8, wins: def.wins * 2, bonus: true, minWins: BONUS_PAD_MIN_WINS }
-
-  signs.push({ kind: 'safe', x: 0, y: 13.5, z: s0 + 0.15 })
-  signs.push({ kind: 'tip', x: -half + 0.15, y: 7, z: s0 - 22 })
-
-  const gateHalf = 7
-  const last = k === STAGE_COUNT
-  if (last) {
-    solid(0, 6.5, s1 - 1, W * 0.55, 1.5, 2, '#ffc21a')
-    for (const sx of [-1, 1]) solid(sx * (W * 0.275), 3, s1 - 1, 2, 6, 2, '#ffc21a')
-    signs.push({ kind: 'finale', x: 0, y: 9, z: s1 + 0.2, text: 'YOU ESCAPED!', emoji: '🏆' })
-  } else {
-    // One simple boundary wall between stages with a single decorated gate opening.
-    const wallHalf = half + 1
-    const sideWidth = wallHalf - gateHalf
-    for (const sx of [-1, 1]) {
-      solid(sx * (gateHalf + sideWidth / 2), WALL_H / 2, s1 - 1, sideWidth, WALL_H, 2, theme.wall)
-      solid(sx * gateHalf, 4.5, s1 - 1.1, 1.4, 9, 2.5, theme.wall2)
-      deco(sx * gateHalf, 4.5, s1 - 2.35, 0.24, 8.5, 0.16, theme.accent, { neon: true })
-    }
-    solid(0, 9 + (WALL_H - 9) / 2, s1 - 1, gateHalf * 2, WALL_H - 9, 2, theme.wall)
-    solid(0, WALL_H - 1.2, s1 - 1.1, gateHalf * 2 + 3, 1.2, 2.5, theme.wall2)
-    deco(0, WALL_H - 2.2, s1 - 2.35, gateHalf * 2, 0.25, 0.16, theme.accent, { neon: true })
-    pushIntroSigns(signs, k + 1, s1 + 0.2, 'wall')
+  // one pays double but stays locked until you have two rebirths.
+  const returnPad = { x: exitX - 15, z: s1 + 9, w: 10, d: 10, wins: def.wins, bonus: false, minWins: 0, color: '#fff000' }
+  const bonusPad = { x: exitX + 15, z: s1 + 9, w: 10, d: 10, wins: def.wins * 2, bonus: true, minRebirths: BONUS_PAD_MIN_REBIRTHS, color: '#ff2839' }
+  for (const side of [-1, 1]) {
+    neon(exitX + side * 8, 0.05, s1 + 13, 0.25, 0.1, 23, '#8dffe4')
+    deco(exitX + side * 15, 0.04, s1 + 9, 12, 0.08, 12, '#12283f')
+    solid(exitX + side * 15, 0.6, s1 + 19, 8, 1.2, 2, theme.wall2)
+    deco(exitX + side * 15, 1.6, s1 + 18.3, 8, 1.3, 0.45, theme.accent)
   }
 
+  signs.push({ kind: 'safe', x: 0, y: 18, z: s0 + 0.35, color: '#8fff00' })
+  const gateHalf = STAGE_DOOR_W / 2
+  const last = k === STAGE_COUNT
+  const wallLeft = safeCenter - safeWidth / 2
+  const wallRight = safeCenter + safeWidth / 2
+  const doorway = (x, z) => {
+    const leftWidth = x - gateHalf - wallLeft
+    const rightWidth = wallRight - x - gateHalf
+    solid(wallLeft + leftWidth / 2, WALL_H / 2, z, leftWidth, WALL_H, 2, theme.wall)
+    solid(wallRight - rightWidth / 2, WALL_H / 2, z, rightWidth, WALL_H, 2, theme.wall)
+    solid(x, (STAGE_GATE_H + WALL_H) / 2, z, gateHalf * 2, WALL_H - STAGE_GATE_H, 2, theme.wall)
+    // Make the Safe Room exit wall read as one deliberate two-tone gateway.
+    // Broad inset panels sit on the room-facing wall surface, clear of the doorway.
+    for (const side of [-1, 1]) {
+      const panelX = x + side * (gateHalf + 7)
+      deco(panelX, WALL_H / 2, z + 1.06, 9, WALL_H - 5, 0.12, theme.wall2)
+      deco(panelX, WALL_H - 3.4, z + 1.14, 7.8, 0.28, 0.1, theme.wall)
+      deco(panelX, 3.4, z + 1.14, 7.8, 0.28, 0.1, theme.wall)
+    }
+    for (const side of [-1, 1]) {
+      solid(x + side * (gateHalf + 0.7), STAGE_GATE_H / 2, z, 1.4, STAGE_GATE_H, 2.5, theme.wall2)
+      for (const face of [-1, 1]) neon(x + side * (gateHalf + 0.15), STAGE_GATE_H / 2, z + face * 1.3, 0.24, STAGE_GATE_H, 0.12)
+    }
+    solid(x, STAGE_GATE_H + 0.5, z, gateHalf * 2 + 2.8, 1, 2.5, theme.wall2)
+    for (const face of [-1, 1]) neon(x, STAGE_GATE_H + 0.15, z + face * 1.3, gateHalf * 2, 0.24, 0.12)
+  }
+  doorway(0, s0 - 1)
+  if (last) {
+    solid(safeCenter, WALL_H / 2, s1 + 1, safeWidth, WALL_H, 2, theme.wall)
+    deco(0, 9, s1 + 2.05, 26, 10, 0.1, theme.wall2)
+    signs.push({ kind: 'finale', x: 0, y: 9, z: s1 + 0.2, text: 'YOU ESCAPED!', emoji: '🏆' })
+  } else {
+    doorway(exitX, s1 - 1)
+    pushIntroSigns(signs, k + 1, s1 + 0.2, exitX)
+  }
+
+  // Shift the complete world chunk onto its side of the zig-zag route.
+  for (const box of boxes) { box.x += routeX; box.tile = 0.65 }
+  for (const hazard of hazards) {
+    hazard.x = (hazard.x || 0) + routeX
+    hazard.stage = k
+    if (hazard.shelters) for (const shelter of hazard.shelters) shelter.x += routeX
+  }
+  for (const gate of gates) gate.x += routeX
+  for (const sign of signs) sign.x += routeX
+  for (const current of currents) current.x += routeX
+  for (const river of rivers) river.x += routeX
+  for (const zone of carryZones) zone.x += routeX
+  for (const site of digSites) site.x += routeX
+  if (toolRack) toolRack.x += routeX
+  returnPad.x += routeX
+  bonusPad.x += routeX
   return {
     k,
     theme,
@@ -1220,11 +1008,17 @@ export function buildStage(k) {
     signs,
     currents,
     rivers,
+    carryZones,
+    digSites,
+    toolRack,
     ceil,
+    routeX,
+    roofCenterX: routeX + safeCenter,
+    roofWidth: safeWidth,
     returnPad,
     bonusPad,
-    barrier: last ? null : { x: 0, z: s1 - 2.35, w: gateHalf * 2 - 0.35, h: 8.3, color: theme.accent },
-    safe: { z0: s0, z1: s1 },
+    barrier: last ? null : { x: nextX, z: s1 - 2.35, w: gateHalf * 2 - 0.35, h: STAGE_GATE_H, color: theme.accent },
+    safe: { z0: s0, z1: s1, x0: routeX + wallLeft, x1: routeX + wallRight },
     next: last ? null : { z: s1 - 2 },
   }
 }
@@ -1262,9 +1056,21 @@ export function rollerPos(h, t) {
 
 /** Wave: travels from zFrom to zTo during `travel` secs, then rests until period ends. */
 export function wavePos(h, t) {
-  const p = frac((t + h.offset) / h.period) * h.period
+  if (h.triggerOnEntry && h.activeAt == null) return null
+  const clock = h.triggerOnEntry ? t - h.activeAt + h.offset : t + h.offset
+  const p = frac(clock / h.period) * h.period
+  if (h.axis === 'x') {
+    const elapsed = p - h.warn
+    if (elapsed < 0 || elapsed > h.travel) return null
+    return { x: h.x + h.xFrom + (h.xTo - h.xFrom) * elapsed / h.travel, z: h.z }
+  }
+  if (h.warn != null) {
+    const elapsed = p - h.warn
+    if (elapsed < 0 || elapsed > h.travel) return null
+    return { x: h.x || 0, z: h.zFrom + (h.zTo - h.zFrom) * (elapsed / h.travel) }
+  }
   if (p > h.travel) return null
-  return { z: h.zFrom + (h.zTo - h.zFrom) * (p / h.travel) }
+  return { x: h.x || 0, z: h.zFrom + (h.zTo - h.zFrom) * (p / h.travel) }
 }
 
 /** Wheelchair grandma rolling down the hall, weaving side to side. Returns { x, z, yaw }. */
@@ -1283,12 +1089,18 @@ export function tornadoX(h, t) {
   return h.x + Math.sin((t + h.offset) * h.speed) * h.amp
 }
 
+export function tornadoPos(h, t) {
+  if (h.zFrom == null || h.zTo == null) return { x: tornadoX(h, t), z: h.z }
+  const p = frac((t + h.offset) / h.period)
+  return { x: tornadoX(h, t), z: h.zFrom + (h.zTo - h.zFrom) * p }
+}
+
 /** Lava ball leaping across the corridor in an arc. Returns { x, y }, or null while it's under. */
 export function lavaBallPos(h, t) {
   const p = frac((t + h.offset) / h.period)
   if (p > 0.8) return null
   const q = p / 0.8
-  return { x: h.dir * (-h.half + 2 * h.half * q), y: h.r + 4 * h.height * q * (1 - q) }
+  return { x: (h.x || 0) + h.dir * (-h.half + 2 * h.half * q), y: h.r + 4 * h.height * q * (1 - q) }
 }
 
 export function sweeperAngle(h, t) {
@@ -1300,7 +1112,7 @@ export function pusherX(h, t) {
 }
 
 export function pendulumX(h, t) {
-  return Math.sin((t + h.offset) * h.speed) * h.amp
+  return (h.x || 0) + Math.sin((t + h.offset) * h.speed) * h.amp
 }
 
 export function laserOn(h, t) {
@@ -1315,14 +1127,15 @@ export function tileState(h, t) {
   return { solid: false, warn: false }
 }
 
-/** Lava tide over a walkway: `level` is the lava surface height (<0 = hidden). */
+/** Flood surface height in world space, rising continuously from the river below. */
 export function tideLevel(h, t) {
   const p = frac((t + h.offset) / h.period)
-  if (p < 0.5) return { level: -1, warn: false }
-  if (p < 0.62) return { level: -1, warn: true }
-  if (p < 0.67) return { level: -1 + (2.4 * (p - 0.62)) / 0.05, warn: false }
-  if (p < 0.92) return { level: 1.4, warn: false }
-  return { level: 1.4 - (2.4 * (p - 0.92)) / 0.08, warn: false }
+  const rise = h.highY - h.lowY
+  if (p < 0.38) return { level: h.lowY, warn: false }
+  if (p < 0.62) return { level: h.lowY, warn: true }
+  if (p < 0.67) return { level: h.lowY + rise * (p - 0.62) / 0.05, warn: false }
+  if (p < 0.92) return { level: h.highY, warn: false }
+  return { level: h.highY - rise * (p - 0.92) / 0.08, warn: false }
 }
 
 /** Falling block: y height over the cycle. Returns { y, warn, landed }. */
@@ -1337,4 +1150,17 @@ export function fallingState(h, t) {
   if (p < 0.85) return { y: h.size / 2, warn: false, landed: true }
   const q = (p - 0.85) / 0.15
   return { y: h.size / 2 + q * 14, warn: false, landed: false }
+}
+
+/** Smooth lifts pause at each landing, then travel between them. */
+export function liftY(h, t) {
+  const p = frac((t + h.offset) / h.period)
+  const q = p < 0.2 ? 0 : p < 0.45 ? (p - 0.2) / 0.25 : p < 0.7 ? 1 : p < 0.95 ? 1 - (p - 0.7) / 0.25 : 0
+  return h.y + q * h.rise
+}
+
+export function carryState(state, held, now) {
+  if (!held) return { held: false, until: 0, carrying: false, remaining: 0 }
+  const until = state.held ? state.until : now + 5000
+  return { held: true, until, carrying: now < until, remaining: Math.max(0, (until - now) / 1000) }
 }

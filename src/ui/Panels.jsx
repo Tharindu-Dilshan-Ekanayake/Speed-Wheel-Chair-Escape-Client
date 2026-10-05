@@ -75,7 +75,7 @@ function RebirthPanel({ p }) {
   const nextSpeed = Math.round((p.rebirths + 1) * REBIRTH_SPEED_BONUS * 100)
   const nextWins = Math.round((p.rebirths + 1) * REBIRTH_WIN_BONUS * 100)
   return (
-    <Modal title="Rebirth" color="#2a9dff" icon="🔄">
+    <Modal title="Rebirth" color="#e52d42" icon="🔄">
       <div style={{ textAlign: 'center', fontSize: 'calc(var(--u)*2.6)' }}>
         <div style={{ fontSize: 'calc(var(--u)*4)' }}>
           Rebirths: <b>{p.rebirths}</b> → <b style={{ color: '#2a9dff' }}>{p.rebirths + 1}</b>
@@ -222,7 +222,8 @@ function PetsTab({ p }) {
           return (
             <div
               key={pet.uid}
-              className={`card ${eq ? 'equipped' : ''} ${sel === pet.uid ? 'sel' : ''}`}
+              className={`card pet-card ${eq ? 'equipped' : ''} ${sel === pet.uid ? 'sel' : ''}`}
+              style={{ '--pet-rarity': RARITY[def.rarity].color, '--pet-body': def.body }}
               onClick={() => {
                 play('click')
                 setSel(pet.uid)

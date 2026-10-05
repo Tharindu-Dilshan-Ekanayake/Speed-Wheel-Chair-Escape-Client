@@ -1,4 +1,5 @@
-import { Suspense, forwardRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { Suspense, forwardRef, useRef } from 'react'
 
 import { PlayerAura } from './effects/Aura'
 import { ChairAura } from './effects/Aura'
@@ -20,15 +21,26 @@ const AVATAR_HEIGHT = 1.85
 const TAG_OPTS = { stroke: '#000', strokeWidth: 0.2, size: 64 }
 
 export const Rider = forwardRef(function Rider(
-  { name, level, chairId, auraId, motionRef, remote = false, equipped, proportions, fxKey, onReady },
+  { name, chairId, auraId, motionRef, remote = false, showName = true, equipped, proportions, fxKey, onReady },
   ref,
 ) {
   const chair = chairById(chairId)
+  const chairGroup = useRef()
+  const avatarGroup = useRef()
+  useFrame((_state, dt) => {
+    const carrying = motionRef?.current?.carrying
+    const t = Math.min(1, dt * 12)
+    chairGroup.current.position.y += ((carrying ? 2.05 : 0) - chairGroup.current.position.y) * t
+    chairGroup.current.rotation.z += ((carrying ? 0.14 : 0) - chairGroup.current.rotation.z) * t
+    avatarGroup.current.position.y += ((carrying ? 0.06 : 0) - avatarGroup.current.position.y) * t
+  })
   return (
     <group ref={ref}>
-      <Wheelchair key={chairId} chairId={chairId} motion={motionRef} />
+      <group ref={chairGroup}>
+        <Wheelchair key={chairId} chairId={chairId} motion={motionRef} />
+      </group>
       {chair?.aura && <ChairAura color={chair.aura} radius={0.95} />}
-      <Suspense fallback={null}>
+      <group ref={avatarGroup}><Suspense fallback={null}>
         <PlayerAvatar
           position={AVATAR_OFFSET}
           targetHeight={AVATAR_HEIGHT}
@@ -38,16 +50,10 @@ export const Rider = forwardRef(function Rider(
           proportions={proportions}
           onReady={onReady}
         />
-      </Suspense>
+      </Suspense></group>
       <PlayerAura auraId={auraId} />
       <LevelUpFx fxKey={fxKey} />
-      <Label
-        text={[{ text: name || 'Player' }, { text: `Level: ${level ?? 1}`, color: '#5dff3a', size: 0.85 }]}
-        height={0.62}
-        position={[0, 2.85, 0]}
-        billboard
-        opts={TAG_OPTS}
-      />
+      {showName && <Label text={name || 'Player'} height={0.62} position={[0, 3.9, 0]} billboard opts={TAG_OPTS} />}
     </group>
   )
 })

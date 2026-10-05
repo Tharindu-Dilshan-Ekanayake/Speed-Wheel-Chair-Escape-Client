@@ -4,7 +4,7 @@ import { SPEED_PACKS } from '../shared/gameData'
 
 /** Left-side menu buttons and their hotkeys (shown in each button's top-left corner). */
 export const MENU = [
-  { id: 'rebirth', label: 'Rebirth', icon: '🔄', key: 'R', cls: 'bg-blue' },
+  { id: 'rebirth', label: 'Rebirth', icon: '🔄', key: 'R', cls: 'bg-red' },
   { id: 'trails', label: 'Trails', icon: '✨', key: 'T', cls: 'bg-red' },
   { id: 'teleport', label: 'Teleport', icon: '🌀', key: 'P', cls: 'bg-purple' },
   { id: 'auras', label: 'Auras', icon: '🔥', key: 'U', cls: 'bg-green' },
