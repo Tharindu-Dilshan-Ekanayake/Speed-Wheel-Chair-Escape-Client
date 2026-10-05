@@ -6,7 +6,6 @@ import GameScene from './game/GameScene'
 import { connect, reconnectWithNewIdentity } from './net/net'
 import { runtime, useGame } from './state/store'
 import AuthHUD from './ui/AuthHUD'
-import DevPanel from './ui/DevPanel'
 import { MENU, buyPack, buyX2 } from './ui/actions'
 import HUD from './ui/HUD'
 import Overlays, { Hatch } from './ui/Overlays'
@@ -25,11 +24,6 @@ function useHotkeys() {
       if (e.key === 'Escape') {
         if (g.panel) play('close')
         g.closePanel()
-        return
-      }
-      if (e.key === 'F2' || e.key === '`') {
-        e.preventDefault()
-        if (g.dev) useGame.setState({ devOpen: !g.devOpen })
         return
       }
       if (!g.profile) return
@@ -126,7 +120,6 @@ function App() {
       <AuthHUD />
       <Panels />
       <Overlays />
-      <DevPanel />
       <TouchControls />
       <div className="hud" style={{ zIndex: 40 }}>
         <Hatch />
