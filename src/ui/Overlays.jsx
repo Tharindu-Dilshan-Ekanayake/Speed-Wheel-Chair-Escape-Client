@@ -108,7 +108,7 @@ function NetOverlay() {
       <div className="title otl">+1 SPEED WHEEL CHAIR ESCAPE</div>
       <div className="loading-sub otl">{net === 'error' ? 'Starting guest mode…' : 'Loading your racer…'}</div>
       <div className="loading-track"><div /></div>
-      <div className="loading-note">Your Bloxity account loads automatically. No account? You’ll play as Guest.</div>
+      
     </div>
   )
 }
